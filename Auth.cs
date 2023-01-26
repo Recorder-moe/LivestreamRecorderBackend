@@ -94,11 +94,12 @@ public class Auth
         Logger.Debug("error: {error}", error);
 #endif
 
-        if (state != "12345GG")
-        {
-            Logger.Warning("Invalid state: {state}", state);
-            return new BadRequestResult();
-        }
+        // I'm using state as a redirect route.
+        //if (state != "12345GG")
+        //{
+        //    Logger.Warning("Invalid state: {state}", state);
+        //    return new BadRequestResult();
+        //}
 
         if (!string.IsNullOrEmpty(error))
         {
@@ -112,7 +113,7 @@ public class Auth
         Logger.Debug("idToken: {idToken}", idToken);
 #endif
 
-        return new RedirectResult($"{_frontEndUri}/pages/login?idToken={idToken}");
+        return new RedirectResult($"{_frontEndUri}/pages/login?idToken={idToken}&redirect={state}");
     }
 }
 
