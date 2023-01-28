@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using LivestreamRecorderBackend.DB.Models;
+using System;
 #nullable disable warnings
 
 namespace LivestreamRecorderBackend.DTO.User;
@@ -18,4 +15,5 @@ internal class GetUserResponse
     public DateTime RegistrationDate { get; set; }
     public string? Note { get; set; }
     public string? GoogleUID { get; set; }
+    public Tokens Tokens { get; set; }
 }

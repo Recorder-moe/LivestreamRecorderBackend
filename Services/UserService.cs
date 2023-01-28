@@ -60,6 +60,7 @@ public class UserService : IDisposable
                 Email = userEmail ?? throw new InvalidOperationException("Email is empty!!"),
                 Picture = userPicture,
                 RegistrationDate = DateTime.Now,
+                Tokens = new DB.Models.Tokens()
             };
 
             if (issuer == "https://accounts.google.com")

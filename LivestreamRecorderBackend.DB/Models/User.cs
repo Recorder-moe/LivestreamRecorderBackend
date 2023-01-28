@@ -22,5 +22,13 @@ public class User : Entity
 
     public string? GoogleUID { get; set; }
 
+    public Tokens Tokens { get; set; }
+
 }
 
+
+public class Tokens
+{
+    public int SupportToken { get; set; } = 0;
+    public int DownloadToken { get; set; } = 0;
+}
