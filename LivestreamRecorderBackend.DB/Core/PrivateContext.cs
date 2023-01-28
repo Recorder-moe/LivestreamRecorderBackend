@@ -1,0 +1,58 @@
+﻿using LivestreamRecorderBackend.DB.Models;
+using Microsoft.EntityFrameworkCore;
+#nullable disable warnings
+
+namespace LivestreamRecorderBackend.DB.Core;
+
+public class PrivateContext : DbContext
+{
+    public DbSet<User> Users { get; set; }
+
+    public PrivateContext(DbContextOptions options) : base(options)
+    {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        #region Users
+        modelBuilder.Entity<User>()
+            .ToContainer("Users");
+
+        modelBuilder.Entity<User>()
+            .HasNoDiscriminator();
+
+        modelBuilder.Entity<User>()
+            .HasKey(nameof(User.id));
+
+        modelBuilder.Entity<User>()
+            .HasPartitionKey(o => o.id);
+
+        modelBuilder.Entity<User>()
+            .UseETagConcurrency();
+        #endregion
+
+
+        #region Other Examples
+        //#region PropertyNames
+        //modelBuilder.Entity<Video>().OwnsOne(
+        //    o => o.ShippingAddress,
+        //    sa =>
+        //    {
+        //        sa.ToJsonProperty("Address");
+        //        sa.Property(p => p.Street).ToJsonProperty("ShipsToStreet");
+        //        sa.Property(p => p.City).ToJsonProperty("ShipsToCity");
+        //    });
+        //#endregion
+
+        //#region OwnsMany
+        //modelBuilder.Entity<Distributor>().OwnsMany(p => p.ShippingCenters);
+        //#endregion
+
+        //#region ETagProperty
+        //modelBuilder.Entity<Distributor>()
+        //    .Property(d => d.ETag)
+        //    .IsETagConcurrency();
+        //#endregion
+        #endregion
+    }
+}
