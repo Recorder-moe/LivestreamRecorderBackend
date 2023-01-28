@@ -6,6 +6,8 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
@@ -56,7 +58,10 @@ namespace LivestreamRecorderBackend
 
                 var result = new GetUserResponse();
                 if (null != user) result.InjectFrom(user);
-                return new JsonResult(result);
+                return new JsonResult(result, new JsonSerializerSettings()
+                {
+                    ContractResolver = new DefaultContractResolver()
+                });
             }
             catch (Exception e)
             {
