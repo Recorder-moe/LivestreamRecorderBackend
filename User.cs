@@ -31,6 +31,7 @@ namespace LivestreamRecorderBackend
         [FunctionName(nameof(GetUser))]
         [OpenApiOperation(operationId: nameof(GetUser), tags: new[] { "User" })]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
+        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
         public IActionResult GetUser(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User")] HttpRequest req, ClaimsPrincipal principal)
         {
@@ -39,12 +40,11 @@ namespace LivestreamRecorderBackend
                 using var userService = new UserService();
 
 #if DEBUG
-                DB.Models.User? user = null;
                 Helper.Log.LogClaimsPrincipal(principal);
-                if (req.Host.Host == "localhost")
-                {
-                    user = userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!);
-                }
+                DB.Models.User? user =
+                    req.Host.Host == "localhost"
+                        ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
+                        : userService.GetUserFromClaimsPrincipal(principal);
 #else
                 if (null == principal
                     || null == principal.Identity
@@ -76,6 +76,7 @@ namespace LivestreamRecorderBackend
         [FunctionName(nameof(CreateOrUpdateUserFromEasyAuth))]
         [OpenApiOperation(operationId: nameof(CreateOrUpdateUserFromEasyAuth), tags: new[] { "User" })]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
         public IActionResult CreateOrUpdateUserFromEasyAuth(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")] HttpRequest req, ClaimsPrincipal principal)
         {
@@ -84,18 +85,17 @@ namespace LivestreamRecorderBackend
                 using var userService = new UserService();
 
 #if DEBUG
-                DB.Models.User? user = null;
-                Helper.Log.LogClaimsPrincipal(principal);
                 if (req.Host.Host == "localhost")
                 {
-                    user = userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!);
+                    Helper.Log.LogClaimsPrincipal(principal);
+                    return new OkResult();
                 }
-#else
+#endif
+
                 if (null == principal
                     || null == principal.Identity
                     || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-                DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
+
                 userService.CreateOrUpdateUserWithOAuthClaims(principal);
                 return new OkResult();
             }
@@ -116,6 +116,7 @@ namespace LivestreamRecorderBackend
         [OpenApiOperation(operationId: nameof(UpdateUser), tags: new[] { "User" })]
         [OpenApiRequestBody("application/json", typeof(UpdateUserRequest), Required = true)]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
+        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
         public IActionResult UpdateUser(
             [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "User")] HttpRequest req, ClaimsPrincipal principal)
         {
@@ -124,18 +125,19 @@ namespace LivestreamRecorderBackend
                 using var userService = new UserService();
 
 #if DEBUG
-                DB.Models.User? user = null;
                 Helper.Log.LogClaimsPrincipal(principal);
-                if (req.Host.Host == "localhost")
-                {
-                    user = userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!);
-                }
+                DB.Models.User user =
+                    req.Host.Host == "localhost"
+                        ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
+                        : userService.GetUserFromClaimsPrincipal(principal);
 #else
                 if (null == principal
                     || null == principal.Identity
                     || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
+
                 DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
 #endif
+
                 string requestBody = String.Empty;
                 using (StreamReader streamReader = new(req.Body))
                 {
