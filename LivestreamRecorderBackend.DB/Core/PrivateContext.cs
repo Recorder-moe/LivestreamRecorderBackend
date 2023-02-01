@@ -31,6 +31,22 @@ public class PrivateContext : DbContext
             .UseETagConcurrency();
         #endregion
 
+        #region Transactions
+        modelBuilder.Entity<Transaction>()
+            .ToContainer("Transactions");
+
+        modelBuilder.Entity<Transaction>()
+            .HasNoDiscriminator();
+
+        modelBuilder.Entity<Transaction>()
+            .HasKey(nameof(Transaction.id));
+
+        modelBuilder.Entity<Transaction>()
+            .HasPartitionKey(o => o.UserId);
+
+        modelBuilder.Entity<Transaction>()
+            .UseETagConcurrency();
+        #endregion
 
         #region Other Examples
         //#region PropertyNames
