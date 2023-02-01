@@ -17,7 +17,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Web.Http;
 
-namespace LivestreamRecorderBackend
+namespace LivestreamRecorderBackend.Functions
 {
     public class User
     {
@@ -29,7 +29,7 @@ namespace LivestreamRecorderBackend
         }
 
         [FunctionName(nameof(GetUser))]
-        [OpenApiOperation(operationId: nameof(GetUser), tags: new[] { "User" })]
+        [OpenApiOperation(operationId: nameof(GetUser), tags: new[] { nameof(User) })]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
         public IActionResult GetUser(
@@ -74,7 +74,7 @@ namespace LivestreamRecorderBackend
 
 
         [FunctionName(nameof(CreateOrUpdateUserFromEasyAuth))]
-        [OpenApiOperation(operationId: nameof(CreateOrUpdateUserFromEasyAuth), tags: new[] { "User" })]
+        [OpenApiOperation(operationId: nameof(CreateOrUpdateUserFromEasyAuth), tags: new[] { nameof(User) })]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
         public IActionResult CreateOrUpdateUserFromEasyAuth(
@@ -113,7 +113,7 @@ namespace LivestreamRecorderBackend
         }
 
         [FunctionName(nameof(UpdateUser))]
-        [OpenApiOperation(operationId: nameof(UpdateUser), tags: new[] { "User" })]
+        [OpenApiOperation(operationId: nameof(UpdateUser), tags: new[] { nameof(User) })]
         [OpenApiRequestBody("application/json", typeof(UpdateUserRequest), Required = true)]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
@@ -138,7 +138,7 @@ namespace LivestreamRecorderBackend
                 DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
 #endif
 
-                string requestBody = String.Empty;
+                string requestBody = string.Empty;
                 using (StreamReader streamReader = new(req.Body))
                 {
                     requestBody = streamReader.ReadToEnd();
