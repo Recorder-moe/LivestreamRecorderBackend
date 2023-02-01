@@ -29,6 +29,6 @@ public class User : Entity
 
 public class Tokens
 {
-    public int SupportToken { get; set; } = 0;
-    public int DownloadToken { get; set; } = 0;
+    public decimal SupportToken { get; set; } = 0;
+    public decimal DownloadToken { get; set; } = 0;
 }

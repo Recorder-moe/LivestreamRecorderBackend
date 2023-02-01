@@ -10,7 +10,7 @@ namespace LivestreamRecorderBackend.DB.Core
 
         public DbContext Context { get; set; }
 
-        public UnitOfWork(PrivateContext context)
+        public UnitOfWork(DbContext context)
         {
             Context = context;
             Context.Database.EnsureCreated();

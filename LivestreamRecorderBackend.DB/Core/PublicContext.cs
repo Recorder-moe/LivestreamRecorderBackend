@@ -4,51 +4,58 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LivestreamRecorderBackend.DB.Core;
 
-public class PrivateContext : DbContext
+public class PublicContext : DbContext
 {
-    public DbSet<User> Users { get; set; }
+    public DbSet<Video> Videos { get; set; }
+    public DbSet<Channel> Channels { get; set; }
 
-    public PrivateContext() { }
+    public PublicContext() { }
 
-    public PrivateContext(DbContextOptions options) : base(options)
+    public PublicContext(DbContextOptions options) : base(options)
     {
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        #region Users
-        modelBuilder.Entity<User>()
-            .ToContainer("Users");
+        #region Videos
+        modelBuilder.Entity<Video>()
+            .ToContainer("Videos");
 
-        modelBuilder.Entity<User>()
+        modelBuilder.Entity<Video>()
             .HasNoDiscriminator();
 
-        modelBuilder.Entity<User>()
-            .HasKey(nameof(User.id));
+        modelBuilder.Entity<Video>()
+            .HasKey(nameof(Video.id));
 
-        modelBuilder.Entity<User>()
-            .HasPartitionKey(o => o.id);
+        modelBuilder.Entity<Video>()
+            .HasPartitionKey(o => o.ChannelId);
 
-        modelBuilder.Entity<User>()
+        modelBuilder.Entity<Video>()
+            .UseETagConcurrency();
+
+        modelBuilder.Entity<Video>()
+            .HasOne(o => o.Channel)
+            .WithMany(o => o.Videos)
+            .HasForeignKey(o => o.ChannelId);
+        #endregion
+
+        #region Channels
+        modelBuilder.Entity<Channel>()
+            .ToContainer("Channels");
+
+        modelBuilder.Entity<Channel>()
+            .HasNoDiscriminator();
+
+        modelBuilder.Entity<Channel>()
+            .HasKey(nameof(Channel.id));
+
+        modelBuilder.Entity<Channel>()
+            .HasPartitionKey(o => o.Source);
+
+        modelBuilder.Entity<Channel>()
             .UseETagConcurrency();
         #endregion
 
-        #region Transactions
-        modelBuilder.Entity<Transaction>()
-            .ToContainer("Transactions");
-
-        modelBuilder.Entity<Transaction>()
-            .HasNoDiscriminator();
-
-        modelBuilder.Entity<Transaction>()
-            .HasKey(nameof(Transaction.id));
-
-        modelBuilder.Entity<Transaction>()
-            .HasPartitionKey(o => o.UserId);
-
-        modelBuilder.Entity<Transaction>()
-            .UseETagConcurrency();
-        #endregion
 
         #region Other Examples
         //#region PropertyNames

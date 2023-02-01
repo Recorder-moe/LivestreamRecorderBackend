@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using LivestreamRecorderBackend.DB.Enum;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using LivestreamRecorderBackend.DB.Enum;
 
 namespace LivestreamRecorderBackend.DB.Models;
 #pragma warning disable CS8618 // 退出建構函式時，不可為 Null 的欄位必須包含非 Null 值。請考慮宣告為可為 Null。
@@ -25,6 +25,9 @@ public class Transaction : Entity
 
     [Required]
     public DateTime Timestamp { get; set; }
+
+    [Required]
+    public TransactionState TransactionState { get; set; }
 
     public string? ChannelId { get; set; }
 
