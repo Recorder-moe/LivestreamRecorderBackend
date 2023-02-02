@@ -1,40 +1,38 @@
 ﻿using LivestreamRecorderBackend.DB.Enum;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using System;
+using System.Collections.Generic;
 
-namespace LivestreamRecorderBackend.DB.Models;
 #pragma warning disable CS8618 // 退出建構函式時，不可為 Null 的欄位必須包含非 Null 值。請考慮宣告為可為 Null。
+namespace LivestreamRecorderBackend.DTO.Transaction;
 
-[Table("Transactions")]
-public class Transaction : Entity
+internal class GetTransactionResponse : List<Transaction>
 {
-    [Required]
-    public override string id { get; set; }
+    public GetTransactionResponse() { }
 
-    [Required]
+    public GetTransactionResponse(IEnumerable<Transaction> transactions) : base(transactions) { }
+}
+
+internal class Transaction
+{
+#pragma warning disable IDE1006 // 命名樣式
+    public string id { get; set; }
+#pragma warning restore IDE1006 // 命名樣式
+
     public TokenType TokenType { get; set; }
 
-    [Required]
     public string UserId { get; set; }
 
-    [Required]
     public TransactionType TransactionType { get; set; }
 
-    [Required]
     public decimal Amount { get; set; }
 
-    [Required]
     public DateTime Timestamp { get; set; }
 
-    [Required]
     public TransactionState TransactionState { get; set; }
 
     public string? ChannelId { get; set; }
 
     public string? Note { get; set; }
-
-
-    public User User { get; set; }
 
 }
 

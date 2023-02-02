@@ -48,6 +48,12 @@ public class PrivateContext : DbContext
 
         modelBuilder.Entity<Transaction>()
             .UseETagConcurrency();
+
+        modelBuilder.Entity<Transaction>()
+            .HasOne(o => o.User)
+            .WithMany(o => o.Transactions)
+            .HasForeignKey(o => o.UserId);
+
         #endregion
 
         #region Other Examples

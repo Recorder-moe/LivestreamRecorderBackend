@@ -7,6 +7,11 @@ namespace LivestreamRecorderBackend.DB.Models;
 [Table("Users")]
 public class User : Entity
 {
+    public User()
+    {
+        Transactions = new HashSet<Transaction>();
+    }
+
     [Required]
     public override string id { get; set; }
     [Required]
@@ -23,6 +28,8 @@ public class User : Entity
     public string? GoogleUID { get; set; }
 
     public Tokens Tokens { get; set; }
+
+    public ICollection<Transaction> Transactions { get; set; }
 
 }
 

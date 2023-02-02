@@ -1,9 +1,11 @@
 ﻿using LivestreamRecorderBackend.DB.Core;
 using LivestreamRecorderBackend.DB.Enum;
+using LivestreamRecorderBackend.DB.Exceptions;
 using LivestreamRecorderBackend.DB.Interfaces;
 using LivestreamRecorderBackend.DB.Models;
 using Serilog;
 using System;
+using System.Collections.Generic;
 
 namespace LivestreamRecorderBackend.Services;
 
@@ -107,7 +109,19 @@ internal class TransactionService : IDisposable
         return entry.Entity;
     }
 
+    /// <summary>
+    /// Get Transaction By Id
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    /// <exception cref="EntityNotFoundException"></exception>
     internal Transaction GetTransactionById(string id) => _transactionRepository.GetById(id);
+
+    internal IEnumerable<Transaction> GetTransactionsByUser(string userId)
+        => _transactionRepository.Where(p => p.UserId == userId);
+
+    internal IEnumerable<Transaction> GetTransactionsByChannel(string channelId)
+        => _transactionRepository.Where(p => p.ChannelId == channelId);
 
     #region Dispose
     protected virtual void Dispose(bool disposing)
