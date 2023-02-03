@@ -55,6 +55,7 @@ internal class TransactionService : IDisposable
             try
             {
                 channel.SupportToken += amount;
+                channel.Monitoring = true;
                 _channelRepository.Update(channel);
                 _publicUnitOfWork.Commit();
                 Logger.Information("Successfully add {amount} support token to channel {ChannelId}", amount, channelId);
