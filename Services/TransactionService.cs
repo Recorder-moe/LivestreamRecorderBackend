@@ -43,7 +43,7 @@ internal class TransactionService : IDisposable
             Logger.Warning("Insufficient balance when supporting channel {ChannelId} for user {UserId}", channelId, userId);
             transaction.TransactionState = TransactionState.Failed;
             transaction.Note = "Insufficient balance";
-            Logger.Error("Transaction failed: {TransactionId} {Note}", transaction.id, transaction.Note);
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", transaction.id, transaction.Note);
 
             _transactionRepository.Update(transaction);
             _privateUnitOfWork.Commit();
@@ -73,7 +73,7 @@ internal class TransactionService : IDisposable
                 transaction = _transactionRepository.GetById(transaction.id);   // For insurance
                 transaction.TransactionState = TransactionState.Failed;
                 transaction.Note = $"Error when adding support token to channel {channelId}";
-                Logger.Error("Transaction failed: {TransactionId} {Note}", transaction.id, transaction.Note);
+                Logger.Warning("Transaction failed: {TransactionId} {Note}", transaction.id, transaction.Note);
 
                 _transactionRepository.Update(transaction);
                 _privateUnitOfWork.Commit();
