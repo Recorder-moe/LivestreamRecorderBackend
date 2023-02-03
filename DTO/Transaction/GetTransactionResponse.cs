@@ -32,6 +32,8 @@ internal class Transaction
 
     public string? ChannelId { get; set; }
 
+    public string? VideoId { get; set; }
+
     public string? Note { get; set; }
 
 }
