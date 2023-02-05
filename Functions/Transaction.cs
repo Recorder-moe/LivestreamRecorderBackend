@@ -162,6 +162,61 @@ namespace LivestreamRecorderBackend.Functions
             }
         }
 
+        [FunctionName(nameof(ClaimSupportTokens))]
+        [OpenApiOperation(operationId: nameof(ClaimSupportTokens), tags: new[] { nameof(Transaction) })]
+        [OpenApiRequestBody("application/json", typeof(ClaimSupportTokensRequest), Required = true)]
+        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        public IActionResult ClaimSupportTokens(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ClaimSupportTokens")] HttpRequest req, ClaimsPrincipal principal)
+        {
+            try
+            {
+                using var userService = new UserService();
+                using var transactionService = new TransactionService();
+
+#if DEBUG
+                Helper.Log.LogClaimsPrincipal(principal);
+                DB.Models.User user =
+                    req.Host.Host == "localhost"
+                        ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
+                        : userService.GetUserFromClaimsPrincipal(principal);
+#else
+                if (null == principal
+                    || null == principal.Identity
+                    || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
+
+                DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
+#endif
+
+                string requestBody = string.Empty;
+                using (StreamReader streamReader = new(req.Body))
+                {
+                    requestBody = streamReader.ReadToEnd();
+                }
+                ClaimSupportTokensRequest data = JsonConvert.DeserializeObject<ClaimSupportTokensRequest>(requestBody)
+                    ?? throw new InvalidOperationException("Invalid request body!!");
+
+                if (user.id != data.UserId) return new ForbidResult();
+
+                var transactionId = transactionService.ClaimSupportTokens(data.UserId,data.Amount);
+                var transaction = transactionService.GetTransactionById(transactionId);
+                return transaction.TransactionState == DB.Enum.TransactionState.Success
+                    ? new OkObjectResult(transaction.id)
+                    : new BadRequestObjectResult(transaction.id);
+            }
+            catch (Exception e)
+            {
+                if (e is NotSupportedException or EntityNotFoundException)
+                {
+                    Logger.Error(e, "User not found!!");
+                    Helper.Log.LogClaimsPrincipal(principal);
+                    return new BadRequestObjectResult(e.Message);
+                }
+
+                Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(SupportChannel), e);
+                return new InternalServerErrorResult();
+            }
+        }
     }
 }
 
