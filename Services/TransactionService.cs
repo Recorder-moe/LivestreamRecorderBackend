@@ -61,6 +61,7 @@ internal class TransactionService : IDisposable
                 Logger.Information("Successfully add {amount} support token to channel {ChannelId}", amount, channelId);
 
                 user.Tokens.SupportToken -= amount;
+                user.Tokens.DownloadToken += amount;
                 _userRepositpry.Update(user);
                 transaction.TransactionState = TransactionState.Success;
                 _transactionRepository.Update(transaction);
