@@ -110,6 +110,7 @@ internal class TransactionService : IDisposable
                 user.Tokens.SupportToken -= amount;
                 //_userRepositpry.Update(user);
                 supportTokenTransaction.TransactionState = TransactionState.Success;
+                supportTokenTransaction.Note = $"User {userId} support channel {channelId}";
                 _transactionRepository.Update(supportTokenTransaction);
                 //_privateUnitOfWork.Commit();
                 Logger.Information("Success transaction {TransactionId} for user {UserId}", supportTokenTransaction.id, userId);
@@ -117,6 +118,7 @@ internal class TransactionService : IDisposable
                 user.Tokens.DownloadToken += amount;
                 _userRepositpry.Update(user);
                 downloadTokenTransaction.TransactionState = TransactionState.Success;
+                downloadTokenTransaction.Note = $"User {userId} support channel {channelId}";
                 _transactionRepository.Update(downloadTokenTransaction);
                 _privateUnitOfWork.Commit();
                 Logger.Information("Success transaction {TransactionId} for user {UserId}", supportTokenTransaction.id, userId);
@@ -161,6 +163,7 @@ internal class TransactionService : IDisposable
                 user.Tokens.SupportToken += amount;
                 _userRepositpry.Update(user);
                 transaction.TransactionState = TransactionState.Success;
+                transaction.Note = $"User claims {amount} support tokens.";
                 _transactionRepository.Update(transaction);
                 _privateUnitOfWork.Commit();
                 Logger.Information("Success transaction {TransactionId} for user {UserId}", transaction.id, userId);
