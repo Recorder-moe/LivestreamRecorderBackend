@@ -289,6 +289,14 @@ internal class TransactionService : IDisposable
         return transaction.id;
     }
 
+    internal bool IsVideoDownloaded(string vidoeId, string userId)
+        => _transactionRepository.Where(p => p.UserId == userId
+                                             && p.VideoId == vidoeId
+                                             && p.TransactionState == TransactionState.Success
+                                             && p.TokenType == TokenType.DownloadToken
+                                             && p.TransactionType == TransactionType.Withdrawal)
+                                 .Any();
+
     #region Dispose
     protected virtual void Dispose(bool disposing)
     {
