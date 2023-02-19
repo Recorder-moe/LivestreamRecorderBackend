@@ -28,9 +28,9 @@ namespace LivestreamRecorderBackend.Functions
         [FunctionName(nameof(SupportChannel))]
         [OpenApiOperation(operationId: nameof(SupportChannel), tags: new[] { nameof(Transaction) })]
         [OpenApiRequestBody("application/json", typeof(SupportChannelRequest), Required = true)]
-        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "The transaction id.")]
         public IActionResult SupportChannel(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "SupportChannel")] HttpRequest req, ClaimsPrincipal principal)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/SupportChannel")] HttpRequest req, ClaimsPrincipal principal)
         {
             try
             {
@@ -165,9 +165,9 @@ namespace LivestreamRecorderBackend.Functions
         [FunctionName(nameof(ClaimSupportTokens))]
         [OpenApiOperation(operationId: nameof(ClaimSupportTokens), tags: new[] { nameof(Transaction) })]
         [OpenApiRequestBody("application/json", typeof(ClaimSupportTokensRequest), Required = true)]
-        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "The transaction id.")]
         public IActionResult ClaimSupportTokens(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ClaimSupportTokens")] HttpRequest req, ClaimsPrincipal principal)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/ClaimSupportTokens")] HttpRequest req, ClaimsPrincipal principal)
         {
             try
             {
@@ -221,9 +221,9 @@ namespace LivestreamRecorderBackend.Functions
         [FunctionName(nameof(DownloadVideo))]
         [OpenApiOperation(operationId: nameof(DownloadVideo), tags: new[] { nameof(Transaction) })]
         [OpenApiRequestBody("application/json", typeof(DownloadVideoRequest), Required = true)]
-        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "The transaction id.")]
         public IActionResult DownloadVideo(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "DownloadVideo")] HttpRequest req, ClaimsPrincipal principal)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/DownloadVideo")] HttpRequest req, ClaimsPrincipal principal)
         {
             try
             {
