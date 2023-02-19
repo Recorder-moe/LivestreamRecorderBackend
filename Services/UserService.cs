@@ -1,5 +1,6 @@
 ﻿using LivestreamRecorderBackend.DB.Core;
 using LivestreamRecorderBackend.DB.Exceptions;
+using LivestreamRecorderBackend.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +33,7 @@ public class UserService : IDisposable
         _userRepository = new UserRepository(_unitOfWork);
     }
 
-    internal DB.Models.User GetUserById(string id) => _userRepository.GetById(id);
+    internal User GetUserById(string id) => _userRepository.GetById(id);
 
     /// <summary>
     /// Get User by GoogleUID
@@ -40,7 +41,7 @@ public class UserService : IDisposable
     /// <param name="googleUID"></param>
     /// <returns>User</returns>
     /// <exception cref="EntityNotFoundException">User not found.</exception>
-    internal DB.Models.User GetUserByGoogleUID(string googleUID)
+    internal User GetUserByGoogleUID(string googleUID)
         => _userRepository.Where(p => p.GoogleUID == googleUID).SingleOrDefault()
             ?? throw new EntityNotFoundException($"Entity with GoogleUID: {googleUID} was not found.");
 
@@ -54,7 +55,7 @@ public class UserService : IDisposable
         // Use Google bigger picture
         if (null != userPicture) userPicture = Regex.Replace(userPicture, @"=s\d\d-c$", "=s0");
 
-        DB.Models.User? user = null;
+        User? user = null;
 
         try
         {
@@ -65,14 +66,14 @@ public class UserService : IDisposable
 
         if (null == user)
         {
-            user = new DB.Models.User()
+            user = new User()
             {
                 id = Guid.NewGuid().ToString(),
                 UserName = userName ?? "Valuable User",
                 Email = userEmail ?? throw new InvalidOperationException("Email is empty!!"),
                 Picture = userPicture,
                 RegistrationDate = DateTime.Now,
-                Tokens = new DB.Models.Tokens()
+                Tokens = new Tokens()
             };
 
             if (issuer == "https://accounts.google.com")
@@ -100,7 +101,7 @@ public class UserService : IDisposable
     /// <param name="user">User to updated.</param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException">User id is not match.</exception>
-    internal DB.Models.User UpdateUser(UpdateUserRequest request, DB.Models.User user)
+    internal User UpdateUser(UpdateUserRequest request, User user)
     {
         if (user.id != request.id)
         {
@@ -141,7 +142,7 @@ public class UserService : IDisposable
     /// <exception cref="NotSupportedException">Issuer not supported.</exception>
     /// <exception cref="InvalidOperationException">UID is null.</exception>
     /// <exception cref="EntityNotFoundException">User not found.</exception>
-    internal DB.Models.User GetUserFromClaimsPrincipal(ClaimsPrincipal principal)
+    internal User GetUserFromClaimsPrincipal(ClaimsPrincipal principal)
     {
         var issuer = principal.FindFirst("iss")?.Value;
         switch (issuer)

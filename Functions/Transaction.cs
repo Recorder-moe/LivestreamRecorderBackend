@@ -61,7 +61,7 @@ namespace LivestreamRecorderBackend.Functions
 
                 if (user.id != data.UserId) return new ForbidResult();
 
-                var transactionId = transactionService.SupportChannel(data.UserId, data.ChannelId, data.Amount);
+                var transactionId = transactionService.NewSupportChannelTransaction(data.UserId, data.ChannelId, data.Amount);
                 var transaction = transactionService.GetTransactionById(transactionId);
                 return transaction.TransactionState == DB.Enum.TransactionState.Success
                     ? new OkObjectResult(transaction.id)
@@ -198,7 +198,7 @@ namespace LivestreamRecorderBackend.Functions
 
                 if (user.id != data.UserId) return new ForbidResult();
 
-                var transactionId = transactionService.ClaimSupportTokens(data.UserId,data.Amount);
+                var transactionId = transactionService.ClaimSupportTokens(data.UserId, data.Amount);
                 var transaction = transactionService.GetTransactionById(transactionId);
                 return transaction.TransactionState == DB.Enum.TransactionState.Success
                     ? new OkObjectResult(transaction.id)
@@ -214,6 +214,69 @@ namespace LivestreamRecorderBackend.Functions
                 }
 
                 Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(SupportChannel), e);
+                return new InternalServerErrorResult();
+            }
+        }
+
+        [FunctionName(nameof(DownloadVideo))]
+        [OpenApiOperation(operationId: nameof(DownloadVideo), tags: new[] { nameof(Transaction) })]
+        [OpenApiRequestBody("application/json", typeof(DownloadVideoRequest), Required = true)]
+        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        public IActionResult DownloadVideo(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "DownloadVideo")] HttpRequest req, ClaimsPrincipal principal)
+        {
+            try
+            {
+                using var userService = new UserService();
+                using var transactionService = new TransactionService();
+                using var videoService = new VideoService();
+
+#if DEBUG
+                Helper.Log.LogClaimsPrincipal(principal);
+                DB.Models.User user =
+                    req.Host.Host == "localhost"
+                        ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
+                        : userService.GetUserFromClaimsPrincipal(principal);
+#else
+                if (null == principal
+                    || null == principal.Identity
+                    || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
+
+                DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
+#endif
+
+                string requestBody = string.Empty;
+                using (StreamReader streamReader = new(req.Body))
+                {
+                    requestBody = streamReader.ReadToEnd();
+                }
+                DownloadVideoRequest data = JsonConvert.DeserializeObject<DownloadVideoRequest>(requestBody)
+                    ?? throw new InvalidOperationException("Invalid request body!!");
+
+                if (user.id != data.UserId) return new ForbidResult();
+
+                if (!videoService.IsVideoArchived(data.VideoId))
+                {
+                    Logger.Warning("User {userId} requested to download a video {videoId} that is not archived.", data.UserId, data.VideoId);
+                    return new BadRequestObjectResult($"Video {data.VideoId} is not archived.");
+                }
+
+                var transactionId = transactionService.NewDownloadVideoTransaction(data.UserId, data.VideoId);
+                var transaction = transactionService.GetTransactionById(transactionId);
+                return transaction.TransactionState == DB.Enum.TransactionState.Success
+                    ? new OkObjectResult(transaction.id)
+                    : new BadRequestObjectResult(transaction.id);
+            }
+            catch (Exception e)
+            {
+                if (e is NotSupportedException or EntityNotFoundException)
+                {
+                    Logger.Error(e, "User not found!!");
+                    Helper.Log.LogClaimsPrincipal(principal);
+                    return new BadRequestObjectResult(e.Message);
+                }
+
+                Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(DownloadVideo), e);
                 return new InternalServerErrorResult();
             }
         }
