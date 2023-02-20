@@ -228,12 +228,13 @@ internal class TransactionService : IDisposable
     }
 
     internal Transaction? GetFirstSupportTransaction(string channelId, string userId)
-        => _userRepositpry.GetById(userId).Transactions.Where(p => p.TransactionState == TransactionState.Success
-                                                                   && p.TokenType == TokenType.SupportToken
-                                                                   && p.TransactionType == TransactionType.Withdrawal
-                                                                   && p.ChannelId == channelId)
-                                                       .OrderBy(p => p.Timestamp)
-                                                       .FirstOrDefault();
+        => _transactionRepository.Where(p => p.UserId == userId
+                                             && p.TransactionState == TransactionState.Success
+                                             && p.TokenType == TokenType.SupportToken
+                                             && p.TransactionType == TransactionType.Withdrawal
+                                             && p.ChannelId == channelId)
+                                 .OrderBy(p => p.Timestamp)
+                                 .FirstOrDefault();
 
     private static decimal CalculateConsumeToken(long? size)
     {
@@ -295,6 +296,7 @@ internal class TransactionService : IDisposable
                                              && p.TransactionState == TransactionState.Success
                                              && p.TokenType == TokenType.DownloadToken
                                              && p.TransactionType == TransactionType.Withdrawal)
+                                 .ToList()
                                  .Any();
 
     #region Dispose
