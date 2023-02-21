@@ -330,5 +330,67 @@ public class Transaction
             return new InternalServerErrorResult();
         }
     }
+
+    [FunctionName(nameof(IsChannelSupportedBeforeVideoArchived))]
+    [OpenApiOperation(operationId: nameof(IsChannelSupportedBeforeVideoArchived), tags: new[] { nameof(Transaction) })]
+    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "Search with UserId")]
+    [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "Search with VideoId")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "application/json", typeof(bool), Description = "The OK response")]
+    public IActionResult IsChannelSupportedBeforeVideoArchived(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Transaction/IsChannelSupportedBeforeVideoArchived")] HttpRequest req, ClaimsPrincipal principal)
+    {
+        try
+        {
+            using var userService = new UserService();
+            using var transactionService = new TransactionService();
+            using var videoService = new VideoService();
+
+#if DEBUG
+            Helper.Log.LogClaimsPrincipal(principal);
+            DB.Models.User user =
+                req.Host.Host == "localhost"
+                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
+                    : userService.GetUserFromClaimsPrincipal(principal);
+#else
+            if (null == principal
+                || null == principal.Identity
+                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
+
+            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
+#endif
+
+            IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
+            queryDictionary.TryGetValue("userId", out var userId);
+            queryDictionary.TryGetValue("videoId", out var videoId);
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                if (userId != user.id)
+                {
+                    Logger.Warning("User {userId} tried to get transactions of user {userIdToGet} but is not the owner of the user", user.id, userId);
+                    return new ForbidResult();
+                }
+            }
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(videoId))
+            {
+                return new BadRequestObjectResult("Missing parameters.");
+            }
+
+            var video = videoService.GetVideoById(videoId);
+            var transaction = transactionService.GetFirstSupportTransaction(video.ChannelId, userId);
+            return new OkObjectResult(null != transaction && video.ArchivedTime >= transaction.Timestamp);
+        }
+        catch (Exception e)
+        {
+            if (e is NotSupportedException or EntityNotFoundException)
+            {
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetTransaction), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
 }
 

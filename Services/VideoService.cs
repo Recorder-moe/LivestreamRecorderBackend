@@ -1,6 +1,7 @@
 ﻿using LivestreamRecorderBackend.DB.Core;
 using LivestreamRecorderBackend.DB.Enum;
 using LivestreamRecorderBackend.DB.Interfaces;
+using LivestreamRecorderBackend.DB.Models;
 using Serilog;
 using System;
 
@@ -27,6 +28,8 @@ internal class VideoService : IDisposable
                || video.Size.HasValue
                || video.Size > 0;
     }
+
+    internal Video GetVideoById(string id) => _videoRepository.GetById(id);
 
     #region Dispose
     protected virtual void Dispose(bool disposing)

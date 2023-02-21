@@ -202,7 +202,7 @@ internal class TransactionService : IDisposable
                 Logger.Information("User {user} successfully spend {amount} download tokens for the video {videoId}", user.id, amount, videoId);
 
                 downloadTokenTransaction.TransactionState = TransactionState.Success;
-                downloadTokenTransaction.Note = $"User {userId} downloaded video {videoId}@{video.ChannelId}";
+                downloadTokenTransaction.Note = $"User {userId} downloaded video {videoId}";
                 _transactionRepository.Update(downloadTokenTransaction);
                 _privateUnitOfWork.Commit();
                 Logger.Information("Success transaction {TransactionId} for user {UserId}", downloadTokenTransaction.id, userId);
