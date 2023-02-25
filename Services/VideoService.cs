@@ -4,6 +4,7 @@ using LivestreamRecorderBackend.DB.Interfaces;
 using LivestreamRecorderBackend.DB.Models;
 using Serilog;
 using System;
+using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services;
 
@@ -30,6 +31,23 @@ internal class VideoService : IDisposable
     }
 
     internal Video GetVideoById(string id) => _videoRepository.GetById(id);
+
+    /// <summary>
+    /// Get SAS token for video.
+    /// </summary>
+    /// <param name="videoId"></param>
+    /// <param name="blobContainerClient"></param>
+    /// <returns>SAS uri</returns>
+    internal async Task<string?> GetSASTokenAsync(string videoId, Azure.Storage.Blobs.BlobContainerClient blobContainerClient)
+    {
+        var video = GetVideoById(videoId);
+        var blobClient = blobContainerClient.GetBlobClient($@"/videos/{video.Filename}");
+        return null != blobClient
+                   && await blobClient.ExistsAsync()
+                   && blobClient.CanGenerateSasUri
+               ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(6)).Query
+               : null;
+    }
 
     #region Dispose
     protected virtual void Dispose(bool disposing)
