@@ -213,7 +213,7 @@ public class Transaction
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(SupportChannel), e);
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(ClaimSupportTokens), e);
             return new InternalServerErrorResult();
         }
     }
@@ -387,7 +387,7 @@ public class Transaction
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetTransaction), e);
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(IsChannelSupportedBeforeVideoArchived), e);
             return new InternalServerErrorResult();
         }
     }

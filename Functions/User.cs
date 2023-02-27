@@ -12,6 +12,7 @@ using Newtonsoft.Json.Serialization;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Claims;
@@ -22,11 +23,6 @@ namespace LivestreamRecorderBackend.Functions;
 public class User
 {
     private static ILogger Logger => Helper.Log.Logger;
-
-    public User()
-    {
-        Logger.Verbose("Starting up...");
-    }
 
     [FunctionName(nameof(GetUser))]
     [OpenApiOperation(operationId: nameof(GetUser), tags: new[] { nameof(User) })]
@@ -163,7 +159,65 @@ public class User
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(CreateOrUpdateUserFromEasyAuth), e);
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateUser), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
+
+    [FunctionName(nameof(GetSupportedChannels))]
+    [OpenApiOperation(operationId: nameof(GetSupportedChannels), tags: new[] { nameof(User) })]
+    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "Search with UserId")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "application/json", typeof(List<string>), Description = "Channel id array")]
+    public IActionResult GetSupportedChannels(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User/SupportedChannels")] HttpRequest req, ClaimsPrincipal principal)
+    {
+        try
+        {
+            using var userService = new UserService();
+            using var transactionService = new TransactionService();
+
+#if DEBUG
+            Helper.Log.LogClaimsPrincipal(principal);
+            DB.Models.User user =
+                req.Host.Host == "localhost"
+                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
+                    : userService.GetUserFromClaimsPrincipal(principal);
+#else
+            if (null == principal
+                || null == principal.Identity
+                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
+
+            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
+#endif
+
+            IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
+            queryDictionary.TryGetValue("userId", out var userId);
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                if (userId != user.id)
+                {
+                    Logger.Warning("User {userId} tried to get transactions of user {userIdToGet} but is not the owner of the user", user.id, userId);
+                    return new ForbidResult();
+                }
+            }
+            if (string.IsNullOrEmpty(userId))
+            {
+                return new BadRequestObjectResult("Missing parameters.");
+            }
+
+            var channelIds = transactionService.GetSupportedChannelsByUser(userId);
+            return new OkObjectResult(channelIds);
+        }
+        catch (Exception e)
+        {
+            if (e is NotSupportedException or EntityNotFoundException)
+            {
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSupportedChannels), e);
             return new InternalServerErrorResult();
         }
     }

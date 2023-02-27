@@ -299,6 +299,16 @@ internal class TransactionService : IDisposable
                                  .ToList()
                                  .Any();
 
+    internal List<string> GetSupportedChannelsByUser(string userId)
+        => _transactionRepository.Where(p => p.UserId == userId
+                                             && p.TransactionState == TransactionState.Success
+                                             && p.TokenType == TokenType.SupportToken
+                                             && p.TransactionType == TransactionType.Withdrawal
+                                             && null != p.ChannelId
+                                             && "" != p.ChannelId)
+                                 .Select(p => p.ChannelId!)
+                                 .ToList();
+
     #region Dispose
     protected virtual void Dispose(bool disposing)
     {
