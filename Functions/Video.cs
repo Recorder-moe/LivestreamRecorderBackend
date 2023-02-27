@@ -27,7 +27,7 @@ public class Video
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The SAS Token.")]
     public async Task<IActionResult> GetSASToken(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/GetSASToken")] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/SASToken")] HttpRequest req,
             [Blob("livestream-recorder")] BlobContainerClient blobContainerClient,
             ClaimsPrincipal principal)
     {
@@ -72,6 +72,8 @@ public class Video
                 Logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, userId);
                 return new BadRequestObjectResult("Failed to generate SASToken.");
             }
+
+            Logger.Verbose("User {userId} has generated a SAS token for video {videoId}", userId, videoId);
 
             return new OkObjectResult(sASToken);
         }
