@@ -5,6 +5,7 @@
 
 trigger:
 - master
+- dev
 
 variables:
   # Azure Resource Manager connection created during pipeline creation
@@ -12,6 +13,7 @@ variables:
 
   # Function app name
   functionAppName: 'LivestreamRecorderBackend'
+  functionAppNameDev: 'LivestreamRecorderBackendDev'
 
   # Agent VM image name
   vmImageName: 'windows-latest'
@@ -56,8 +58,9 @@ stages:
   condition: succeeded()
 
   jobs:
-  - deployment: Deploy
-    displayName: Deploy
+  - deployment: Deploy_to_production
+    displayName: Deploy to production
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
     environment: 'development'
     pool:
       vmImage: $(vmImageName)
@@ -65,7 +68,6 @@ stages:
     strategy:
       runOnce:
         deploy:
-
           steps:
           - task: AzureFunctionApp@1
             displayName: 'Azure functions app deploy'
@@ -73,4 +75,23 @@ stages:
               azureSubscription: '$(azureSubscription)'
               appType: functionApp
               appName: $(functionAppName)
+              package: '$(Pipeline.Workspace)/drop/$(Build.BuildId).zip'
+
+  - deployment: Deploy_to_dev
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/dev')
+    displayName: Deploy to dev
+    environment: 'development'
+    pool:
+      vmImage: $(vmImageName)
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureFunctionApp@1
+            displayName: 'Azure functions app deploy'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: functionApp
+              appName: $(functionAppNameDev)
               package: '$(Pipeline.Workspace)/drop/$(Build.BuildId).zip'
