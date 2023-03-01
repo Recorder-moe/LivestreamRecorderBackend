@@ -230,16 +230,16 @@ public class UserService : IDisposable
             switch (authType)
             {
                 case "google":
-                    user.GoogleUID = uid;
                     Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
+                    user.GoogleUID = uid;
                     break;
                 case "github":
-                    user.GithubUID = uid;
                     Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
+                    user.GithubUID = uid;
                     break;
                 case "aad":
-                    user.MicrosoftUID = uid;
                     Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
+                    user.MicrosoftUID = uid;
                     break;
                 default:
                     Logger.Error("Authentication Type {authType} is not support!!", authType);
