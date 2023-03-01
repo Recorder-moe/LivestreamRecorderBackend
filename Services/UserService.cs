@@ -134,8 +134,14 @@ public class UserService : IDisposable
         user = _userRepository.GetById(user.id);
         user.UserName = request.UserName ?? user.UserName;
         // Only update if email invalid
-        if (!ValidateEmail(user.Email) && !string.IsNullOrWhiteSpace(request.Email) && ValidateEmail(request.Email))
+        if (!ValidateEmail(user.Email)
+            && !string.IsNullOrWhiteSpace(request.Email)
+            && ValidateEmail(request.Email))
         {
+            if (_userRepository.Where(p => p.Email == request.Email).Any())
+            {
+                throw new InvalidOperationException("Email is already exists.");
+            }
             user.Email = request.Email;
         }
         user.Note = request.Note ?? user.Note;

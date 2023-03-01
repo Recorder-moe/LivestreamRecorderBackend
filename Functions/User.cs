@@ -158,6 +158,12 @@ public class User
                 Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
+            if (e is InvalidOperationException)
+            {
+                Logger.Warning(e, e.Message);
+                Helper.Log.LogClaimsPrincipal(principal);
+                return new BadRequestObjectResult(e.Message);
+            }
 
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateUser), e);
             return new InternalServerErrorResult();
