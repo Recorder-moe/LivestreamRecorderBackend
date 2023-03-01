@@ -1,4 +1,5 @@
-﻿using LivestreamRecorderBackend.DB.Core;
+﻿using Gravatar;
+using LivestreamRecorderBackend.DB.Core;
 using LivestreamRecorderBackend.DB.Exceptions;
 using LivestreamRecorderBackend.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
@@ -7,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -58,14 +60,8 @@ public class UserService : IDisposable
 
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
-        string? userName = claimsPrincipal.FindFirst("name")?.Value;
-        string? userEmail = claimsPrincipal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value;
-        string? userPicture = claimsPrincipal.FindFirst("picture")?.Value;
-        string? issuer = claimsPrincipal.FindFirst("iss")?.Value;
-        string? authType = claimsPrincipal.Identity?.AuthenticationType;
-
-        // Use Google bigger picture
-        if (null != userPicture) userPicture = Regex.Replace(userPicture, @"=s\d\d-c$", "=s0");
+        string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
+        string ? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user = null;
 
@@ -76,6 +72,9 @@ public class UserService : IDisposable
         catch (EntityNotFoundException) {
             user = MigrateUser(claimsPrincipal);
         }
+
+        string? userEmail = user?.Email ?? claimsPrincipal.Identity?.Name;
+        string? userPicture = userEmail?.ToGravatar(200);
 
         if (null == user)
         {
@@ -134,12 +133,26 @@ public class UserService : IDisposable
 
         user = _userRepository.GetById(user.id);
         user.UserName = request.UserName ?? user.UserName;
-        user.Picture = request.Picture ?? user.Picture;
+        // Only update if email invalid
+        if (!ValidateEmail(user.Email) && !string.IsNullOrWhiteSpace(request.Email) && ValidateEmail(request.Email))
+        {
+            user.Email = request.Email;
+        }
         user.Note = request.Note ?? user.Note;
+
+        user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
         var entry = _userRepository.Update(user);
         _unitOfWork.Commit();
         return entry.Entity;
+
+        static bool ValidateEmail(string email_string)
+        {
+            // https://github.com/microsoft/referencesource/blob/master/System.ComponentModel.DataAnnotations/DataAnnotations/EmailAddressAttribute.cs#LL54C11-L54C11
+            string pattern = @"^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$";
+            bool result = Regex.IsMatch(email_string, pattern, RegexOptions.IgnoreCase);
+            return result;
+        }
     }
 
     /// <summary>
@@ -184,12 +197,14 @@ public class UserService : IDisposable
     }
 
     private User? MigrateUser(ClaimsPrincipal principal)
-    {        
+    {
         var authType = principal.Identity!.AuthenticationType;
         var uid = GetUID(principal);
 
-        var user = _userRepository.Where(p => p.Email == principal.Identity.Name).SingleOrDefault();
-        if(null != user)
+        if (null == principal.Identity.Name) return null;
+
+        var user = _userRepository.Where(p => p.Email.Contains(principal.Identity.Name)).SingleOrDefault();
+        if (null != user)
         {
             switch (authType)
             {
