@@ -45,12 +45,24 @@ public class UserService : IDisposable
         => _userRepository.Where(p => p.GoogleUID == googleUID).SingleOrDefault()
             ?? throw new EntityNotFoundException($"Entity with GoogleUID: {googleUID} was not found.");
 
+    /// <summary>
+    /// Get User by GithubUID
+    /// </summary>
+    /// <param name="githubUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    internal User GetUserByGithubUID(string githubUID)
+        => _userRepository.Where(p => p.GithubUID == githubUID).SingleOrDefault()
+            ?? throw new EntityNotFoundException($"Entity with GithubUID: {githubUID} was not found.");
+
+
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.FindFirst("name")?.Value;
         string? userEmail = claimsPrincipal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value;
         string? userPicture = claimsPrincipal.FindFirst("picture")?.Value;
         string? issuer = claimsPrincipal.FindFirst("iss")?.Value;
+        string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         // Use Google bigger picture
         if (null != userPicture) userPicture = Regex.Replace(userPicture, @"=s\d\d-c$", "=s0");
@@ -61,13 +73,13 @@ public class UserService : IDisposable
         {
             user = GetUserFromClaimsPrincipal(claimsPrincipal);
         }
-        // New user
         catch (EntityNotFoundException) {
             user = MigrateUser(claimsPrincipal);
         }
 
         if (null == user)
         {
+            // New user
             user = new User()
             {
                 id = Guid.NewGuid().ToString(),
@@ -78,9 +90,19 @@ public class UserService : IDisposable
                 Tokens = new Tokens()
             };
 
-            if (issuer == "https://accounts.google.com")
+            string? uid = GetUID(claimsPrincipal);
+
+            switch (authType)
             {
-                user.GoogleUID = claimsPrincipal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+                case "google":
+                    user.GoogleUID = uid;
+                    break;
+                case "github":
+                    user.GithubUID = uid;
+                    break;
+                default:
+                    Logger.Error("Authentication Type {authType} is not support!!", authType);
+                    throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
 
             // Prevent GUID conflicts
@@ -153,6 +175,8 @@ public class UserService : IDisposable
         {
             case "google":
                 return GetUserByGoogleUID(uid!);
+            case "github":
+                return GetUserByGithubUID(uid!);
             default:
                 Logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
@@ -167,11 +191,15 @@ public class UserService : IDisposable
         var user = _userRepository.Where(p => p.Email == principal.Identity.Name).SingleOrDefault();
         if(null != user)
         {
-            Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
             switch (authType)
             {
                 case "google":
                     user.GoogleUID = uid;
+                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
+                    break;
+                case "github":
+                    user.GithubUID = uid;
+                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
                     break;
                 default:
                     Logger.Error("Authentication Type {authType} is not support!!", authType);
