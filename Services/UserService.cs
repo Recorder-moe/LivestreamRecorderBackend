@@ -151,7 +151,7 @@ public class UserService : IDisposable
             && !string.IsNullOrWhiteSpace(request.Email)
             && ValidateEmail(request.Email))
         {
-            if (_userRepository.Where(p => p.Email == request.Email).Any())
+            if (_userRepository.Where(p => p.Email == request.Email).ToList().Any())
             {
                 throw new InvalidOperationException("Email is already exists.");
             }
