@@ -29,6 +29,8 @@ public class User : Entity
 
     public string? GithubUID { get; set; }
 
+    public string? MicrosoftUID { get; set; }
+
     public Tokens Tokens { get; set; }
 
     public ICollection<Transaction> Transactions { get; set; }
