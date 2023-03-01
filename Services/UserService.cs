@@ -58,6 +58,16 @@ public class UserService : IDisposable
             ?? throw new EntityNotFoundException($"Entity with GithubUID: {githubUID} was not found.");
 
 
+    /// <summary>
+    /// Get User by GithubUID
+    /// </summary>
+    /// <param name="microsoftUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    internal User GetUserByMicrosoftUID(string microsoftUID)
+        => _userRepository.Where(p => p.MicrosoftUID == microsoftUID).SingleOrDefault()
+            ?? throw new EntityNotFoundException($"Entity with MicrosoftUID: {microsoftUID} was not found.");
+
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
@@ -99,6 +109,9 @@ public class UserService : IDisposable
                 case "github":
                     user.GithubUID = uid;
                     break;
+                case "aad":
+                    user.MicrosoftUID= uid;
+                    break;
                 default:
                     Logger.Error("Authentication Type {authType} is not support!!", authType);
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
@@ -134,8 +147,14 @@ public class UserService : IDisposable
         user = _userRepository.GetById(user.id);
         user.UserName = request.UserName ?? user.UserName;
         // Only update if email invalid
-        if (!ValidateEmail(user.Email) && !string.IsNullOrWhiteSpace(request.Email) && ValidateEmail(request.Email))
+        if (!ValidateEmail(user.Email)
+            && !string.IsNullOrWhiteSpace(request.Email)
+            && ValidateEmail(request.Email))
         {
+            if (_userRepository.Where(p => p.Email == request.Email).Any())
+            {
+                throw new InvalidOperationException("Email is already exists.");
+            }
             user.Email = request.Email;
         }
         user.Note = request.Note ?? user.Note;
@@ -190,6 +209,8 @@ public class UserService : IDisposable
                 return GetUserByGoogleUID(uid!);
             case "github":
                 return GetUserByGithubUID(uid!);
+            case "aad":
+                return GetUserByMicrosoftUID(uid!);
             default:
                 Logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
@@ -215,6 +236,10 @@ public class UserService : IDisposable
                 case "github":
                     user.GithubUID = uid;
                     Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
+                    break;
+                case "aad":
+                    user.MicrosoftUID = uid;
+                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
                     break;
                 default:
                     Logger.Error("Authentication Type {authType} is not support!!", authType);
