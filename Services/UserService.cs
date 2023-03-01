@@ -62,7 +62,9 @@ public class UserService : IDisposable
             user = GetUserFromClaimsPrincipal(claimsPrincipal);
         }
         // New user
-        catch (EntityNotFoundException) { }
+        catch (EntityNotFoundException) {
+            user = MigrateUser(claimsPrincipal);
+        }
 
         if (null == user)
         {
@@ -144,19 +146,39 @@ public class UserService : IDisposable
     /// <exception cref="EntityNotFoundException">User not found.</exception>
     internal User GetUserFromClaimsPrincipal(ClaimsPrincipal principal)
     {
-        var issuer = principal.FindFirst("iss")?.Value;
-        switch (issuer)
+        var authType = principal.Identity!.AuthenticationType;
+        var uid = GetUID(principal);
+        if (string.IsNullOrEmpty(uid)) throw new InvalidOperationException("UID is null!");
+        switch (authType)
         {
-            case "https://accounts.google.com":
-                var uid = GetUID(principal);
-
-                if (string.IsNullOrEmpty(uid)) throw new InvalidOperationException("UID is null!");
-
+            case "google":
                 return GetUserByGoogleUID(uid!);
             default:
-                Logger.Error("Issuer {issuer} is not support!!", issuer);
-                throw new NotSupportedException($"Issuer {issuer} is not support!!");
+                Logger.Error("Authentication Type {authType} is not support!!", authType);
+                throw new NotSupportedException($"Authentication Type {authType} is not support!!");
         }
+    }
+
+    private User? MigrateUser(ClaimsPrincipal principal)
+    {        
+        var authType = principal.Identity!.AuthenticationType;
+        var uid = GetUID(principal);
+
+        var user = _userRepository.Where(p => p.Email == principal.Identity.Name).SingleOrDefault();
+        if(null != user)
+        {
+            Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
+            switch (authType)
+            {
+                case "google":
+                    user.GoogleUID = uid;
+                    break;
+                default:
+                    Logger.Error("Authentication Type {authType} is not support!!", authType);
+                    throw new NotSupportedException($"Authentication Type {authType} is not support!!");
+            }
+        }
+        return user;
     }
 
     #region Dispose
