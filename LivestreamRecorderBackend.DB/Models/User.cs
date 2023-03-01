@@ -27,6 +27,8 @@ public class User : Entity
 
     public string? GoogleUID { get; set; }
 
+    public string? GithubUID { get; set; }
+
     public Tokens Tokens { get; set; }
 
     public ICollection<Transaction> Transactions { get; set; }
