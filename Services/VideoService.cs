@@ -45,7 +45,7 @@ internal class VideoService : IDisposable
         return null != blobClient
                    && await blobClient.ExistsAsync()
                    && blobClient.CanGenerateSasUri
-               ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(6)).Query
+               ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12)).Query
                : null;
     }
 
