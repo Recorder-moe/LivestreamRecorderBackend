@@ -22,15 +22,17 @@ public class Utility
         return new OkResult();
     }
 
+#if !DEBUG
     [FunctionName(nameof(WakeByTimer))]
     public void WakeByTimer([TimerTrigger("0 * * * * *")] TimerInfo timerInfo) 
         => Wake();
+#endif
 
     private static void Wake()
     {
 #if DEBUG
 #pragma warning disable IDE0022 // 使用方法的運算式主體
-        Logger.Verbose("C# Timer trigger function executed at: {time}", DateTime.Now);
+        Logger.Verbose("Wake executed at: {time}", DateTime.Now);
 #pragma warning restore IDE0022 // 使用方法的運算式主體
 #endif
     }
