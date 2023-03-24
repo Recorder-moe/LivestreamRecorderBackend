@@ -1,5 +1,4 @@
 using Azure.Storage.Blobs;
-using LivestreamRecorderBackend.DB.Exceptions;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -33,23 +32,11 @@ public class Video
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var videoService = new VideoService();
             using var transactionService = new TransactionService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("userId", out var userId);
@@ -79,11 +66,6 @@ public class Video
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSASToken), e);
             return new InternalServerErrorResult();
         }

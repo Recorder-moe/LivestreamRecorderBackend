@@ -4,7 +4,6 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Serilog;
-using System;
 using System.Net;
 
 namespace LivestreamRecorderBackend.Functions;
@@ -24,7 +23,7 @@ public class Utility
 
 #if !DEBUG
     [FunctionName(nameof(WakeByTimer))]
-    public void WakeByTimer([TimerTrigger("0 * * * * *")] TimerInfo timerInfo) 
+    public void WakeByTimer([TimerTrigger("0 * * * * *")] TimerInfo timerInfo)
         => Wake();
 #endif
 
@@ -32,7 +31,7 @@ public class Utility
     {
 #if DEBUG
 #pragma warning disable IDE0022 // 使用方法的運算式主體
-        Logger.Verbose("Wake executed at: {time}", DateTime.Now);
+        Logger.Verbose("Wake executed at: {time}", System.DateTime.Now);
 #pragma warning restore IDE0022 // 使用方法的運算式主體
 #endif
     }
