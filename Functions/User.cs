@@ -1,4 +1,3 @@
-using LivestreamRecorderBackend.DB.Exceptions;
 using LivestreamRecorderBackend.DTO.User;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
@@ -33,20 +32,9 @@ public class User
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
 
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User? user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
             return new JsonResult(result, new JsonSerializerSettings()
@@ -56,13 +44,6 @@ public class User
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                Logger.Error(e, "User not found!!");
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetUser), e);
             return new InternalServerErrorResult();
         }
@@ -118,21 +99,10 @@ public class User
     {
         try
         {
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var userService = new UserService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -152,12 +122,6 @@ public class User
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                Logger.Error(e, "User not found!!");
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new BadRequestObjectResult(e.Message);
-            }
             if (e is InvalidOperationException)
             {
                 Logger.Warning(e, e.Message);
@@ -180,22 +144,10 @@ public class User
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("userId", out var userId);
@@ -218,11 +170,6 @@ public class User
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSupportedChannels), e);
             return new InternalServerErrorResult();
         }

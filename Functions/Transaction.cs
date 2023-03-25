@@ -1,4 +1,3 @@
-using LivestreamRecorderBackend.DB.Exceptions;
 using LivestreamRecorderBackend.DTO.Transaction;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
@@ -34,22 +33,10 @@ public class Transaction
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -69,13 +56,6 @@ public class Transaction
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                Logger.Error(e, "User not found!!");
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(SupportChannel), e);
             return new InternalServerErrorResult();
         }
@@ -92,22 +72,10 @@ public class Transaction
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("transactionId", out var transactionId);
@@ -152,11 +120,6 @@ public class Transaction
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetTransaction), e);
             return new InternalServerErrorResult();
         }
@@ -171,22 +134,10 @@ public class Transaction
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -206,13 +157,6 @@ public class Transaction
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                Logger.Error(e, "User not found!!");
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(ClaimSupportTokens), e);
             return new InternalServerErrorResult();
         }
@@ -227,23 +171,11 @@ public class Transaction
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
             using var videoService = new VideoService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -269,13 +201,6 @@ public class Transaction
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                Logger.Error(e, "User not found!!");
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(DownloadVideo), e);
             return new InternalServerErrorResult();
         }
@@ -291,41 +216,23 @@ public class Transaction
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("userId", out var userId);
             queryDictionary.TryGetValue("videoId", out var videoId);
 
-            if (user.id != userId) return new ForbidResult();
-
-            if (string.IsNullOrEmpty(videoId) || string.IsNullOrEmpty(userId))
-                return new BadRequestObjectResult("Missing parameters.");
-
-            return new OkObjectResult(transactionService.IsVideoDownloaded(videoId, userId));
+            return user.id != userId
+                ? new ForbidResult()
+                : string.IsNullOrEmpty(videoId) || string.IsNullOrEmpty(userId)
+                    ? new BadRequestObjectResult("Missing parameters.")
+                    : new OkObjectResult(transactionService.IsVideoDownloaded(videoId, userId));
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(IsVideoDownloaded), e);
             return new InternalServerErrorResult();
         }
@@ -341,23 +248,11 @@ public class Transaction
     {
         try
         {
-            using var userService = new UserService();
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
             using var transactionService = new TransactionService();
             using var videoService = new VideoService();
-
-#if DEBUG
-            Helper.Log.LogClaimsPrincipal(principal);
-            DB.Models.User user =
-                req.Host.Host == "localhost"
-                    ? userService.GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!)
-                    : userService.GetUserFromClaimsPrincipal(principal);
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
-
-            DB.Models.User user = userService.GetUserFromClaimsPrincipal(principal);
-#endif
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("userId", out var userId);
@@ -382,11 +277,6 @@ public class Transaction
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException or EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
-
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(IsChannelSupportedBeforeVideoArchived), e);
             return new InternalServerErrorResult();
         }
