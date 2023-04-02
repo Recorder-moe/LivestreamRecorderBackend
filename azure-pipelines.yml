@@ -33,12 +33,22 @@ stages:
 
     steps:
     - task: DotNetCoreCLI@2
-      displayName: Build
+      displayName: Build release
+      condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
       inputs:
         command: 'build'
         projects: |
           $(workingDirectory)/*.csproj
         arguments: --output $(System.DefaultWorkingDirectory)/publish_output --configuration Release
+
+    - task: DotNetCoreCLI@2
+      displayName: Build debug
+      condition: eq(variables['Build.SourceBranch'], 'refs/heads/dev')
+      inputs:
+        command: 'build'
+        projects: |
+          $(workingDirectory)/*.csproj
+        arguments: --output $(System.DefaultWorkingDirectory)/publish_output --configuration Debug
 
     - task: ArchiveFiles@2
       displayName: 'Archive files'
