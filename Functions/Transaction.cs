@@ -1,4 +1,6 @@
+using FluentEcpay;
 using LivestreamRecorderBackend.DTO.Transaction;
+using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +14,13 @@ using Omu.ValueInjecter;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace LivestreamRecorderBackend.Functions;
@@ -158,6 +163,87 @@ public class Transaction
         catch (Exception e)
         {
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(ClaimSupportTokens), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
+    [FunctionName(nameof(BuySupportTokens))]
+    [OpenApiOperation(operationId: nameof(BuySupportTokens), tags: new[] { nameof(Transaction) })]
+    [OpenApiRequestBody("application/json", typeof(BuySupportTokensRequest), Required = true)]
+    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(IPayment), Description = "EcPay payment form post parameters.")]
+    public async Task<IActionResult> BuySupportTokens(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/BuySupportTokens")] HttpRequest req, ClaimsPrincipal principal)
+    {
+        try
+        {
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
+            using var transactionService = new TransactionService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = await streamReader.ReadToEndAsync();
+            }
+            BuySupportTokensRequest data = JsonConvert.DeserializeObject<BuySupportTokensRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            if (user.id != data.UserId) return new ForbidResult();
+
+            var payment = transactionService.BuySupportTokens(data.UserId, data.Amount);
+
+            return payment == null
+                ? new BadRequestResult()
+                : new OkObjectResult(payment);
+        }
+        catch (Exception e)
+        {
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(BuySupportTokens), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
+    [FunctionName(nameof(EcPayReturnEndpoint))]
+    [OpenApiOperation(operationId: nameof(EcPayReturnEndpoint), tags: new[] { nameof(Transaction) })]
+    [OpenApiRequestBody("application/x-www-form-urlencoded", typeof(PaymentResult), Required = true)]
+    [OpenApiResponseWithBody(HttpStatusCode.OK, "text/html", typeof(string), Description = "1|OK")]
+    public IActionResult EcPayReturnEndpoint(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/EcPayReturnEndpoint")] HttpRequest req, ClaimsPrincipal principal)
+    {
+        try
+        {
+            using var transactionService = new TransactionService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = streamReader.ReadToEnd();
+            }
+
+#if DEBUG
+            Logger.Debug("EcPay payment result {result}", requestBody);
+#endif
+
+            // "http://localhost/query?" is added to the string "body" in order to create a valid Uri.
+            string urlBody = "http://localhost/query?" + requestBody;
+            NameValueCollection coll = new Uri(urlBody).ParseQueryString();
+
+            PaymentResult paymentResult = new();
+            paymentResult.InjectFrom(coll);
+            if (!CheckMac.PaymentResultIsValid(result: paymentResult,
+                                               hashKey: Environment.GetEnvironmentVariable("EcPay_HashKey"),
+                                               hashIV: Environment.GetEnvironmentVariable("EcPay_HashIV")))
+            {
+                return new BadRequestResult();
+            }
+
+            transactionService.EcPayReturnEndpoint(paymentResult);
+            return new OkObjectResult("1|OK");
+        }
+        catch (Exception e)
+        {
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(EcPayReturnEndpoint), e);
             return new InternalServerErrorResult();
         }
     }
