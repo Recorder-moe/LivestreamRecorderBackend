@@ -53,10 +53,7 @@ internal class TransactionService : IDisposable
                 iv: Environment.GetEnvironmentVariable("EcPay_HashIV"),
                 algorithm: EHashAlgorithm.SHA256)
             .Return.ToServer(
-                url: Environment.GetEnvironmentVariable("EcPay_ReturnURL"))
-            .Return.ToClient(
-                url: Environment.GetEnvironmentVariable("EcPay_ClientBackURL"),
-                needExtraPaidInfo: false);
+                url: Environment.GetEnvironmentVariable("EcPay_ReturnURL"));
     }
 
     /// <summary>
@@ -328,6 +325,9 @@ internal class TransactionService : IDisposable
         try
         {
             IPayment payment = _paymentConfiguration
+                .Return.ToClient(
+                    url: $"{Environment.GetEnvironmentVariable("EcPay_ClientBackURL")}?showPaymentFinished={transaction.id}",
+                    needExtraPaidInfo: false)
                 .Transaction.New(
                     no: $"recorder{DateTimeOffset.UtcNow.ToUnixTimeSeconds():D12}", // Overwrite later
                     description: description,
@@ -388,8 +388,15 @@ internal class TransactionService : IDisposable
                 {
                     var user = _userRepositpry.GetById(paymentResult.CustomField2);
                     transaction.TransactionState = TransactionState.Success;
-                    user.Tokens.SupportToken += transaction.Amount;
-                    _userRepositpry.Update(user);
+                    if (paymentResult.SimulatePaid == 1)
+                    {
+                        Logger.Warning("Get simulated payment! Simulate {userId} add {amount} ST.", user.id, transaction.Amount);
+                    }
+                    else
+                    {
+                        user.Tokens.SupportToken += transaction.Amount;
+                        _userRepositpry.Update(user);
+                    }
                     Logger.Information("Success transaction {TransactionId} for user {UserId}, {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, user.id, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
                 }
                 else
