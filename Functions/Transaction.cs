@@ -1,6 +1,6 @@
 using FluentEcpay;
 using LivestreamRecorderBackend.DTO.Transaction;
-using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Extension;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,11 +14,9 @@ using Omu.ValueInjecter;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -215,22 +213,8 @@ public class Transaction
         {
             using var transactionService = new TransactionService();
 
-            string requestBody = string.Empty;
-            using (StreamReader streamReader = new(req.Body))
-            {
-                requestBody = streamReader.ReadToEnd();
-            }
+            var paymentResult = req.Form.BindToModel<PaymentResult>();
 
-#if DEBUG
-            Logger.Debug("EcPay payment result {result}", requestBody);
-#endif
-
-            // "http://localhost/query?" is added to the string "body" in order to create a valid Uri.
-            string urlBody = "http://localhost/query?" + requestBody;
-            NameValueCollection coll = new Uri(urlBody).ParseQueryString();
-
-            PaymentResult paymentResult = new();
-            paymentResult.InjectFrom(coll);
             if (!CheckMac.PaymentResultIsValid(result: paymentResult,
                                                hashKey: Environment.GetEnvironmentVariable("EcPay_HashKey"),
                                                hashIV: Environment.GetEnvironmentVariable("EcPay_HashIV")))

@@ -9,8 +9,6 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services;
 
@@ -409,7 +407,7 @@ internal class TransactionService : IDisposable
                 transaction.TransactionState = TransactionState.Failed;
                 Logger.Information("Failed transaction {TransactionId} {ReturnMessage} {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, paymentResult.RtnMsg, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
             }
-            transaction.Note = $"EcPay return message: {paymentResult.RtnMsg}";
+            transaction.Note += $" EcPay: {paymentResult.RtnMsg}";
         }
         catch (Exception e)
         {
