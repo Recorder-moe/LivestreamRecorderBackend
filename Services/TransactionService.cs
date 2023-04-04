@@ -350,6 +350,7 @@ internal class TransactionService : IDisposable
 
             transaction.TransactionState = TransactionState.Pending;
             transaction.Note = description;
+            transaction.EcPayMerchantTradeNo = payment.MerchantTradeNo;
             Logger.Information("Pending transaction {TransactionId} for user {UserId}", transaction.id, userId);
 
             return payment;
@@ -375,39 +376,41 @@ internal class TransactionService : IDisposable
     internal void EcPayReturnEndpoint(PaymentResult paymentResult)
     {
         Transaction transaction = _transactionRepository.GetById(paymentResult.CustomField1);
+        if(transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo
+           || paymentResult.TradeAmt != transaction.Amount * STPrice)
+        {
+            Logger.Warning("EcPay does not return a response which matches our transaction data. {transactionId}", transaction.id);
+            return;
+        }
 
         try
         {
             transaction.EcPayTradeNo = paymentResult.TradeNo;
-            if (paymentResult.RtnCode == 1
-                && paymentResult.TradeAmt == transaction.Amount * STPrice)
-            {
-                if (transaction.TransactionState == TransactionState.Pending)
-                {
-                    var user = _userRepositpry.GetById(paymentResult.CustomField2);
-                    transaction.TransactionState = TransactionState.Success;
-                    if (paymentResult.SimulatePaid == 1)
-                    {
-                        Logger.Warning("Get simulated payment! Simulate {userId} add {amount} ST.", user.id, transaction.Amount);
-                    }
-                    else
-                    {
-                        user.Tokens.SupportToken += transaction.Amount;
-                        _userRepositpry.Update(user);
-                    }
-                    Logger.Information("Success transaction {TransactionId} for user {UserId}, {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, user.id, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
-                }
-                else
-                {
-                    Logger.Error("Transaction {TransactionId} is not in state Pending! It is {state}", transaction.id, Enum.GetName(typeof(TransactionState), transaction.TransactionState));
-                }
-            }
-            else
+            transaction.Note += $" EcPay: {paymentResult.RtnMsg}";
+            if (paymentResult.RtnCode != 1)
             {
                 transaction.TransactionState = TransactionState.Failed;
                 Logger.Information("Failed transaction {TransactionId} {ReturnMessage} {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, paymentResult.RtnMsg, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
+                return;
             }
-            transaction.Note += $" EcPay: {paymentResult.RtnMsg}";
+
+            if (transaction.TransactionState != TransactionState.Pending)
+            {
+                Logger.Error("Transaction {TransactionId} is not in state Pending! It is {state}", transaction.id, Enum.GetName(typeof(TransactionState), transaction.TransactionState));
+                return;
+            }
+
+            var user = _userRepositpry.GetById(paymentResult.CustomField2);
+            transaction.TransactionState = TransactionState.Success;
+            if (paymentResult.SimulatePaid == 1)
+            {
+                Logger.Warning("Get simulated payment! Simulate {userId} add {amount} ST.", user.id, transaction.Amount);
+                return;
+            }
+
+            user.Tokens.SupportToken += transaction.Amount;
+            _userRepositpry.Update(user);
+            Logger.Information("Success transaction {TransactionId} for user {UserId}, {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, user.id, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
         }
         catch (Exception e)
         {
