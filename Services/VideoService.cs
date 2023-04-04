@@ -10,15 +10,15 @@ namespace LivestreamRecorderBackend.Services;
 
 internal class VideoService : IDisposable
 {
-    private static ILogger Logger => Helper.Log.Logger;
+    //private static ILogger Logger => Helper.Log.Logger;
     private bool _disposedValue;
     private readonly IUnitOfWork _publicUnitOfWork;
     private readonly VideoRepository _videoRepository;
 
     public VideoService()
     {
-        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext>();
-        _videoRepository = new VideoRepository(_publicUnitOfWork);
+        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
+        _videoRepository = new VideoRepository((UnitOfWork_Public)_publicUnitOfWork);
     }
 
     internal bool IsVideoArchived(string videoId)

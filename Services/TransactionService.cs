@@ -31,13 +31,13 @@ internal class TransactionService : IDisposable
 
     public TransactionService()
     {
-        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext>();
-        _transactionRepository = new TransactionRepository(_privateUnitOfWork);
-        _userRepositpry = new UserRepository(_privateUnitOfWork);
+        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext, UnitOfWork_Private>();
+        _transactionRepository = new TransactionRepository((UnitOfWork_Private)_privateUnitOfWork);
+        _userRepositpry = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
 
-        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext>();
-        _channelRepository = new ChannelRepository(_publicUnitOfWork);
-        _videoRepository = new VideoRepository(_publicUnitOfWork);
+        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
+        _channelRepository = new ChannelRepository((UnitOfWork_Public)_publicUnitOfWork);
+        _videoRepository = new VideoRepository((UnitOfWork_Public)_publicUnitOfWork);
 
         _paymentConfiguration = new PaymentConfiguration()
             .Send.ToApi(

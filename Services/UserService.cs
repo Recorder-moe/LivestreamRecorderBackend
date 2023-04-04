@@ -18,21 +18,14 @@ namespace LivestreamRecorderBackend.Services;
 public class UserService : IDisposable
 {
     private static ILogger Logger => Helper.Log.Logger;
-    private readonly UnitOfWork _unitOfWork;
+    private readonly UnitOfWork _privateUnitOfWork;
     private readonly UserRepository _userRepository;
     private bool _disposedValue;
 
     public UserService()
     {
-        string? connectionString = Environment.GetEnvironmentVariable("ConnectionStrings_Private");
-        if (string.IsNullOrEmpty(connectionString)) throw new InvalidOperationException("Database connectionString is not set!!");
-        var contextOptions = new DbContextOptionsBuilder<PrivateContext>()
-                                     .UseCosmos(connectionString: connectionString,
-                                                databaseName: "Private")
-                                     .Options;
-        var context = new PrivateContext(contextOptions);
-        _unitOfWork = new UnitOfWork(context);
-        _userRepository = new UserRepository(_unitOfWork);
+        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext, UnitOfWork_Private>();
+        _userRepository = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
     }
 
     internal User GetUserById(string id) => _userRepository.GetById(id);
@@ -127,7 +120,7 @@ public class UserService : IDisposable
             user.Picture = userPicture;
             _userRepository.Update(user);
         }
-        _unitOfWork.Commit();
+        _privateUnitOfWork.Commit();
     }
 
     /// <summary>
@@ -162,7 +155,7 @@ public class UserService : IDisposable
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
         var entry = _userRepository.Update(user);
-        _unitOfWork.Commit();
+        _privateUnitOfWork.Commit();
         return entry.Entity;
 
         static bool ValidateEmail(string email_string)
@@ -256,7 +249,7 @@ public class UserService : IDisposable
         {
             if (disposing)
             {
-                _unitOfWork.Dispose();
+                _privateUnitOfWork.Dispose();
             }
 
             _disposedValue = true;
