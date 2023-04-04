@@ -331,7 +331,7 @@ internal class TransactionService : IDisposable
                     description: description,
                     date: transaction.Timestamp)
                 .Transaction.UseMethod(
-                    method: EPaymentMethod.Credit,
+                    method: EPaymentMethod.ALL,
                     sub: null,
                     ignore: null)
                 .Transaction.WithItems(
@@ -347,6 +347,7 @@ internal class TransactionService : IDisposable
                     field1: transaction.id,
                     field2: userId)
                 .Generate();
+            payment.IgnorePayment = "CVS#BARCODE";
 
             transaction.TransactionState = TransactionState.Pending;
             transaction.Note = description;
