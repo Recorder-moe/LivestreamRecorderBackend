@@ -41,7 +41,7 @@ internal class TransactionService : IDisposable
 
         _paymentConfiguration = new PaymentConfiguration()
             .Send.ToApi(
-                url: Environment.GetEnvironmentVariable("EcPay_URL"))
+                url: Environment.GetEnvironmentVariable("EcPay_Endpoint") + "/Cashier/AioCheckOut/V5")
             .Send.ToMerchant(
                 merchantId: Environment.GetEnvironmentVariable("EcPay_MerchantId"),
                 storeId: null,
