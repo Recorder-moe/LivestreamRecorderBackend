@@ -347,7 +347,13 @@ internal class TransactionService : IDisposable
                     field1: transaction.id,
                     field2: userId)
                 .Generate();
+
+            // Overwrite IgnorePayment and recalculate CheckMacValue
+            var checkMac = new CheckMac(hashKey: Environment.GetEnvironmentVariable("EcPay_HashKey"),
+                                        hashIV: Environment.GetEnvironmentVariable("EcPay_HashIV"));
             payment.IgnorePayment = "CVS#BARCODE";
+            payment.CheckMacValue = null;
+            payment.CheckMacValue = checkMac.GetValue(payment);
 
             transaction.TransactionState = TransactionState.Pending;
             transaction.Note = description;
@@ -377,7 +383,7 @@ internal class TransactionService : IDisposable
     internal void EcPayReturnEndpoint(PaymentResult paymentResult)
     {
         Transaction transaction = _transactionRepository.GetById(paymentResult.CustomField1);
-        if(transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo
+        if (transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo
            || paymentResult.TradeAmt != transaction.Amount * STPrice)
         {
             Logger.Warning("EcPay does not return a response which matches our transaction data. {transactionId}", transaction.id);
