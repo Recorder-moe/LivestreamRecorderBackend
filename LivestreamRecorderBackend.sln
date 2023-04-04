@@ -5,7 +5,7 @@ VisualStudioVersion = 17.4.33122.133
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LivestreamRecorderBackend", "LivestreamRecorderBackend.csproj", "{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LivestreamRecorderBackend.DB", "LivestreamRecorderBackend.DB\LivestreamRecorderBackend.DB.csproj", "{3CAD853A-82C2-483C-A716-F099B66A54B9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LivestreamRecorder.DB", "LivestreamRecorder.DB\LivestreamRecorder.DB.csproj", "{3CAD853A-82C2-483C-A716-F099B66A54B9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,9 +1,9 @@
-﻿using LivestreamRecorderBackend.DB.Models;
-using LivestreamRecorderBackend.DB.Exceptions;
+﻿using LivestreamRecorder.DB.Models;
+using LivestreamRecorder.DB.Exceptions;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 
-namespace LivestreamRecorderBackend.DB.Interfaces;
+namespace LivestreamRecorder.DB.Interfaces;
 
 public interface ICosmosDbRepository<T> where T : Entity
 {

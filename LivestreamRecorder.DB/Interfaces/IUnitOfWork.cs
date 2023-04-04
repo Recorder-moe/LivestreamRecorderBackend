@@ -1,7 +1,7 @@
-﻿using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivestreamRecorderBackend.DB.Interfaces;
+namespace LivestreamRecorder.DB.Interfaces;
 
 public interface IUnitOfWork
 {

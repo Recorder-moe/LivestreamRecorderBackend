@@ -1,8 +1,8 @@
-﻿using LivestreamRecorderBackend.DB.Interfaces;
-using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Interfaces;
+using LivestreamRecorder.DB.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivestreamRecorderBackend.DB.Core
+namespace LivestreamRecorder.DB.Core
 {
     public class UnitOfWork : IUnitOfWork, IDisposable
     {

@@ -1,7 +1,7 @@
-﻿using LivestreamRecorderBackend.DB.Interfaces;
-using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Interfaces;
+using LivestreamRecorder.DB.Models;
 
-namespace LivestreamRecorderBackend.DB.Core;
+namespace LivestreamRecorder.DB.Core;
 
 public class UserRepository : CosmosDbRepository<User>, IUserRepository
 {

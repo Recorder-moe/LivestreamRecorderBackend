@@ -1,5 +1,5 @@
-﻿using LivestreamRecorderBackend.DB.Core;
-using LivestreamRecorderBackend.DB.Interfaces;
+﻿using LivestreamRecorder.DB.Core;
+using LivestreamRecorder.DB.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
 

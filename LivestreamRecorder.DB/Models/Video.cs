@@ -1,7 +1,7 @@
-﻿using LivestreamRecorderBackend.DB.Enum;
+﻿using LivestreamRecorder.DB.Enum;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace LivestreamRecorderBackend.DB.Models;
+namespace LivestreamRecorder.DB.Models;
 #pragma warning disable CS8618 // 退出建構函式時，不可為 Null 的欄位必須包含非 Null 值。請考慮宣告為可為 Null。
 
 [Table("Videos")]

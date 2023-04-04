@@ -1,8 +1,8 @@
-﻿using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Models;
 using Microsoft.EntityFrameworkCore;
 #nullable disable warnings
 
-namespace LivestreamRecorderBackend.DB.Core;
+namespace LivestreamRecorder.DB.Core;
 
 public class PrivateContext : DbContext
 {

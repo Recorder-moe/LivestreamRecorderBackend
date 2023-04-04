@@ -1,7 +1,7 @@
 ﻿using Gravatar;
-using LivestreamRecorderBackend.DB.Core;
-using LivestreamRecorderBackend.DB.Exceptions;
-using LivestreamRecorderBackend.DB.Models;
+using LivestreamRecorder.DB.Core;
+using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

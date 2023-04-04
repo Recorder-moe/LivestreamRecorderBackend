@@ -1,4 +1,4 @@
-﻿namespace LivestreamRecorderBackend.DB.Models;
+﻿namespace LivestreamRecorder.DB.Models;
 
 public abstract class Entity
 {

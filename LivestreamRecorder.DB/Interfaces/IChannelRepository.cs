@@ -1,6 +1,6 @@
-﻿using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Models;
 
-namespace LivestreamRecorderBackend.DB.Interfaces;
+namespace LivestreamRecorder.DB.Interfaces;
 
 public interface IChannelRepository : ICosmosDbRepository<Channel>
 {

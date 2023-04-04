@@ -1,7 +1,7 @@
-﻿using LivestreamRecorderBackend.DB.Core;
-using LivestreamRecorderBackend.DB.Enum;
-using LivestreamRecorderBackend.DB.Interfaces;
-using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Core;
+using LivestreamRecorder.DB.Enum;
+using LivestreamRecorder.DB.Interfaces;
+using LivestreamRecorder.DB.Models;
 using Serilog;
 using System;
 using System.Threading.Tasks;

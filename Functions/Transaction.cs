@@ -1,4 +1,5 @@
 using FluentEcpay;
+using LivestreamRecorder.DB.Enum;
 using LivestreamRecorderBackend.DTO.Transaction;
 using LivestreamRecorderBackend.Extension;
 using LivestreamRecorderBackend.Services;
@@ -53,7 +54,7 @@ public class Transaction
 
             var transactionId = transactionService.NewSupportChannelTransaction(data.UserId, data.ChannelId, data.Amount);
             var transaction = transactionService.GetTransactionById(transactionId);
-            return transaction.TransactionState == DB.Enum.TransactionState.Success
+            return transaction.TransactionState == TransactionState.Success
                 ? new OkObjectResult(transaction.id)
                 : new BadRequestObjectResult(transaction.id);
         }
@@ -154,7 +155,7 @@ public class Transaction
 
             var transactionId = transactionService.ClaimSupportTokens(data.UserId, data.Amount);
             var transaction = transactionService.GetTransactionById(transactionId);
-            return transaction.TransactionState == DB.Enum.TransactionState.Success
+            return transaction.TransactionState == TransactionState.Success
                 ? new OkObjectResult(transaction.id)
                 : new BadRequestObjectResult(transaction.id);
         }
@@ -265,7 +266,7 @@ public class Transaction
 
             var transactionId = transactionService.NewDownloadVideoTransaction(data.UserId, data.VideoId);
             var transaction = transactionService.GetTransactionById(transactionId);
-            return transaction.TransactionState == DB.Enum.TransactionState.Success
+            return transaction.TransactionState == TransactionState.Success
                 ? new OkObjectResult(transaction.id)
                 : new BadRequestObjectResult(transaction.id);
         }
