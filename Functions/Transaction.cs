@@ -353,5 +353,68 @@ public class Transaction
         }
     }
 
+    [FunctionName(nameof(AddChannelAsync))]
+    [OpenApiOperation(operationId: nameof(AddChannelAsync), tags: new[] { nameof(Transaction) })]
+    [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
+    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
+    public async Task<IActionResult> AddChannelAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/AddChannel")] HttpRequest req, ClaimsPrincipal principal)
+    {
+        try
+        {
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
+            using var transactionService = new TransactionService();
+            using var channelService = new ChannelService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = await streamReader.ReadToEndAsync();
+            }
+            AddChannelRequest data = JsonConvert.DeserializeObject<AddChannelRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            if (user.id != data.UserId) return new ForbidResult();
+
+            var channelId = "";
+            var url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(new[] { '/' });
+            // Youtube
+            if (data.Url.Contains("youtube"))
+            {
+                var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync(data.Url);
+                if (null == info)
+                {
+                    Logger.Warning("Failed to get channel info for {url}", data.Url);
+                    return new OkObjectResult("Failed");
+                }
+
+                channelId = info.ChannelId;
+            }
+            // Twitch, Twitcasting
+            else
+            {
+                channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
+            }
+
+            if (channelService.ChannelExists(channelId))
+            {
+                return new OkObjectResult(channelId);
+            }
+
+            var result = transactionService.NewAddChannelTransaction(data.UserId, channelId, url);
+            return result
+                ? new OkObjectResult("OK")
+                : new OkObjectResult("Failed");
+        }
+        catch (Exception e)
+        {
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
+
 }
 

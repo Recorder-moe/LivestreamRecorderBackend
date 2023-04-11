@@ -454,6 +454,60 @@ internal class TransactionService : IDisposable
                                  .Select(p => p.ChannelId!)
                                  .ToList();
 
+    internal bool NewAddChannelTransaction(string userId, string channelId, string url)
+    {
+        Transaction supportTokenTransaction = InitNewTransaction(userId: userId,
+                                                                 tokenType: TokenType.SupportToken,
+                                                                 transactionType: TransactionType.Withdrawal,
+                                                                 amount: 10,
+                                                                 channelId: channelId);
+
+        var user = _userRepositpry.GetById(userId);
+
+        // Insufficient balance
+        if (user.Tokens.SupportToken < 10)
+        {
+            Logger.Warning("Insufficient balance when adding new channel {ChannelId} for user {UserId}", channelId, userId);
+            supportTokenTransaction.TransactionState = TransactionState.Failed;
+            supportTokenTransaction.Note = "Insufficient balance";
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", supportTokenTransaction.id, supportTokenTransaction.Note);
+
+            _transactionRepository.Update(supportTokenTransaction);
+            _privateUnitOfWork.Commit();
+            return false;
+        }
+
+        using var scope = new System.Transactions.TransactionScope();
+        try
+        {
+            user.Tokens.SupportToken -= 10;
+            _userRepositpry.Update(user);
+
+            supportTokenTransaction.TransactionState = TransactionState.Pending;
+            supportTokenTransaction.Note = $"User {userId} add new channel {channelId} for {url}";
+            Logger.Information("Pending transaction {TransactionId} for user {UserId}", supportTokenTransaction.id, userId);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e, "Error when adding channel {ChannelId}", channelId);
+
+            supportTokenTransaction = _transactionRepository.GetById(supportTokenTransaction.id);   // For insurance
+            supportTokenTransaction.TransactionState = TransactionState.Failed;
+            supportTokenTransaction.Note = $"Error when adding channel {channelId}";
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", supportTokenTransaction.id, supportTokenTransaction.Note);
+
+            return false;
+        }
+        finally
+        {
+            _transactionRepository.Update(supportTokenTransaction);
+            _privateUnitOfWork.Commit();
+            scope.Complete();
+        }
+
+        return true;
+    }
+
     #region Dispose
     protected virtual void Dispose(bool disposing)
     {
