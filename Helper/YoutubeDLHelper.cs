@@ -89,19 +89,44 @@ internal static partial class YoutubeDL
         string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(';') ?? Array.Empty<string>();
         string[] extensions = Environment.GetEnvironmentVariable("PATHEXT")?.Split(';') ?? Array.Empty<string>();
 
-        string? _YtdlpPath = (from p in new[] { Environment.CurrentDirectory, TempDirectory.FullName }.Concat(paths)
+        string? _YtdlpPath = (from p in new[]
+                                {
+                                    Environment.CurrentDirectory,
+                                    TempDirectory.FullName,
+                                    @"C:\home\site\wwwroot"
+                                }.Concat(paths)
                               from e in extensions
                               let path = Path.Combine(p.Trim(), "yt-dlp" + e.ToLower())
                               where File.Exists(path)
                               select path)?.FirstOrDefault();
-        string? _FFmpegPath = (from p in new[] { Environment.CurrentDirectory, TempDirectory.FullName }.Concat(paths)
+        string? _FFmpegPath = (from p in new[]
+                                {
+                                    Environment.CurrentDirectory,
+                                    TempDirectory.FullName,
+                                    @"C:\home\site\wwwroot"
+                                }.Concat(paths)
                                from e in extensions
                                let path = Path.Combine(p.Trim(), "ffmpeg" + e.ToLower())
                                where File.Exists(path)
                                select path)?.FirstOrDefault();
 
-        Logger.Debug("Found yt-dlp.exe at {YtdlpPath}", _YtdlpPath);
-        Logger.Debug("Found ffmpeg.exe at {FFmpegPath}", _FFmpegPath);
+        if (string.IsNullOrEmpty(_YtdlpPath))
+        {
+            Logger.Fatal("Cannot found yt-dlp.exe");
+        }
+        else
+        {
+            Logger.Debug("Found yt-dlp.exe at {YtdlpPath}", _YtdlpPath);
+        }
+
+        if (string.IsNullOrEmpty(_FFmpegPath))
+        {
+            Logger.Fatal("Cannot found ffmpeg.exe");
+        }
+        else
+        {
+            Logger.Debug("Found ffmpeg.exe at {FFmpegPath}", _FFmpegPath);
+        }
 
         return (_YtdlpPath, _FFmpegPath);
     }
