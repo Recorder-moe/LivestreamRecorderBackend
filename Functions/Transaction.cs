@@ -129,6 +129,7 @@ public class Transaction
         }
     }
 
+#if false
     [FunctionName(nameof(ClaimSupportTokens))]
     [OpenApiOperation(operationId: nameof(ClaimSupportTokens), tags: new[] { nameof(Transaction) })]
     [OpenApiRequestBody("application/json", typeof(ClaimSupportTokensRequest), Required = true)]
@@ -165,6 +166,7 @@ public class Transaction
             return new InternalServerErrorResult();
         }
     }
+#endif
 
     [FunctionName(nameof(BuySupportTokens))]
     [OpenApiOperation(operationId: nameof(BuySupportTokens), tags: new[] { nameof(Transaction) })]
