@@ -1,4 +1,4 @@
-﻿using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Models;
 using System;
 #nullable disable warnings
 

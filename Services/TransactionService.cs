@@ -1,8 +1,10 @@
-﻿using LivestreamRecorderBackend.DB.Core;
-using LivestreamRecorderBackend.DB.Enum;
-using LivestreamRecorderBackend.DB.Exceptions;
-using LivestreamRecorderBackend.DB.Interfaces;
-using LivestreamRecorderBackend.DB.Models;
+﻿using FluentEcpay;
+using FluentEcpay.Interfaces;
+using LivestreamRecorder.DB.Core;
+using LivestreamRecorder.DB.Enum;
+using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorder.DB.Interfaces;
+using LivestreamRecorder.DB.Models;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -13,6 +15,7 @@ namespace LivestreamRecorderBackend.Services;
 internal class TransactionService : IDisposable
 {
     private static ILogger Logger => Helper.Log.Logger;
+
     private bool _disposedValue;
     private readonly IUnitOfWork _privateUnitOfWork;
     private readonly TransactionRepository _transactionRepository;
@@ -20,16 +23,35 @@ internal class TransactionService : IDisposable
     private readonly UserRepository _userRepositpry;
     private readonly ChannelRepository _channelRepository;
     private readonly VideoRepository _videoRepository;
+    private readonly IPaymentConfiguration _paymentConfiguration;
+
+#pragma warning disable IDE1006 // 命名樣式
+    public const int STPrice = 30;
+#pragma warning restore IDE1006 // 命名樣式
 
     public TransactionService()
     {
-        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext>();
-        _transactionRepository = new TransactionRepository(_privateUnitOfWork);
-        _userRepositpry = new UserRepository(_privateUnitOfWork);
+        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext, UnitOfWork_Private>();
+        _transactionRepository = new TransactionRepository((UnitOfWork_Private)_privateUnitOfWork);
+        _userRepositpry = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
 
-        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext>();
-        _channelRepository = new ChannelRepository(_publicUnitOfWork);
-        _videoRepository = new VideoRepository(_publicUnitOfWork);
+        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
+        _channelRepository = new ChannelRepository((UnitOfWork_Public)_publicUnitOfWork);
+        _videoRepository = new VideoRepository((UnitOfWork_Public)_publicUnitOfWork);
+
+        _paymentConfiguration = new PaymentConfiguration()
+            .Send.ToApi(
+                url: Environment.GetEnvironmentVariable("EcPay_Endpoint") + "/Cashier/AioCheckOut/V5")
+            .Send.ToMerchant(
+                merchantId: Environment.GetEnvironmentVariable("EcPay_MerchantId"),
+                storeId: null,
+                isPlatform: false)
+            .Send.UsingHash(
+                key: Environment.GetEnvironmentVariable("EcPay_HashKey"),
+                iv: Environment.GetEnvironmentVariable("EcPay_HashIV"),
+                algorithm: EHashAlgorithm.SHA256)
+            .Return.ToServer(
+                url: Environment.GetEnvironmentVariable("EcPay_ReturnURL"));
     }
 
     /// <summary>
@@ -290,6 +312,129 @@ internal class TransactionService : IDisposable
         return transaction.id;
     }
 
+    internal IPayment? BuySupportTokens(string userId, decimal amount)
+    {
+        string description = $"User buy {amount} support tokens.";
+        Transaction transaction = InitNewTransaction(userId: userId,
+                                                     tokenType: TokenType.SupportToken,
+                                                     transactionType: TransactionType.Deposit,
+                                                     amount: amount);
+
+        try
+        {
+            IPayment payment = _paymentConfiguration
+                .Return.ToClient(
+                    url: $"{Environment.GetEnvironmentVariable("EcPay_ClientBackURL")}?showPaymentFinished={transaction.id}",
+                    needExtraPaidInfo: false)
+                .Transaction.New(
+                    no: $"recorder{DateTimeOffset.UtcNow.ToUnixTimeSeconds():D12}", // Overwrite later
+                    description: description,
+                    date: transaction.Timestamp)
+                .Transaction.UseMethod(
+                    method: EPaymentMethod.ALL,
+                    sub: null,
+                    ignore: null)
+                .Transaction.WithItems(
+                    items: new Item[] { new()
+                        {
+                            Name = "Support Token",
+                            Price = STPrice,
+                            Quantity = Convert.ToInt32(amount)
+                        } },
+                    url: null,
+                    amount: null)
+                .Transaction.WithCustomFields(
+                    field1: transaction.id,
+                    field2: userId)
+                .Generate();
+
+            // Overwrite IgnorePayment and recalculate CheckMacValue
+            var checkMac = new CheckMac(hashKey: Environment.GetEnvironmentVariable("EcPay_HashKey"),
+                                        hashIV: Environment.GetEnvironmentVariable("EcPay_HashIV"));
+            payment.IgnorePayment = "CVS#BARCODE";
+            payment.CheckMacValue = null;
+            payment.CheckMacValue = checkMac.GetValue(payment);
+
+            transaction.TransactionState = TransactionState.Pending;
+            transaction.Note = description;
+            transaction.EcPayMerchantTradeNo = payment.MerchantTradeNo;
+            Logger.Information("Pending transaction {TransactionId} for user {UserId}", transaction.id, userId);
+
+            return payment;
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e, "Error occurs when sending payment to EcPay. {userId} {transactionId}", userId, transaction.id);
+
+            transaction = _transactionRepository.GetById(transaction.id);   // For insurance
+            transaction.TransactionState = TransactionState.Failed;
+            transaction.Note = $"Error occurs when sending payment to EcPay. {userId}";
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", transaction.id, transaction.Note);
+
+            return null;
+        }
+        finally
+        {
+            _transactionRepository.Update(transaction);
+            _privateUnitOfWork.Commit();
+        }
+    }
+
+    internal void EcPayReturnEndpoint(PaymentResult paymentResult)
+    {
+        Transaction transaction = _transactionRepository.GetById(paymentResult.CustomField1);
+        if (transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo
+           || paymentResult.TradeAmt != transaction.Amount * STPrice)
+        {
+            Logger.Warning("EcPay does not return a response which matches our transaction data. {transactionId}", transaction.id);
+            return;
+        }
+
+        try
+        {
+            transaction.EcPayTradeNo = paymentResult.TradeNo;
+            transaction.Note += $" EcPay: {paymentResult.RtnMsg}";
+            if (paymentResult.RtnCode != 1)
+            {
+                transaction.TransactionState = TransactionState.Failed;
+                Logger.Information("Failed transaction {TransactionId} {ReturnMessage} {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, paymentResult.RtnMsg, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
+                return;
+            }
+
+            if (transaction.TransactionState != TransactionState.Pending)
+            {
+                Logger.Error("Transaction {TransactionId} is not in state Pending! It is {state}", transaction.id, Enum.GetName(typeof(TransactionState), transaction.TransactionState));
+                return;
+            }
+
+            var user = _userRepositpry.GetById(paymentResult.CustomField2);
+            transaction.TransactionState = TransactionState.Success;
+            if (paymentResult.SimulatePaid == 1)
+            {
+                Logger.Warning("Get simulated payment! Simulate {userId} add {amount} ST.", user.id, transaction.Amount);
+                return;
+            }
+
+            user.Tokens.SupportToken += transaction.Amount;
+            _userRepositpry.Update(user);
+            Logger.Information("Success transaction {TransactionId} for user {UserId}, {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, user.id, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e, "Error when processing EcPay payment result for transaction {transactionId} {returnMessage}", transaction.id, paymentResult.RtnMsg);
+
+            transaction = _transactionRepository.GetById(transaction.id);   // For insurance
+            transaction.TransactionState = TransactionState.Failed;
+            transaction.Note = $"Error when processing EcPay payment result: {paymentResult.RtnMsg}";
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", transaction.id, transaction.Note);
+        }
+        finally
+        {
+            _transactionRepository.Update(transaction);
+            _privateUnitOfWork.Commit();
+        }
+    }
+
     internal bool IsVideoDownloaded(string vidoeId, string userId)
         => _transactionRepository.Where(p => p.UserId == userId
                                              && p.VideoId == vidoeId
@@ -308,6 +453,60 @@ internal class TransactionService : IDisposable
                                              && "" != p.ChannelId)
                                  .Select(p => p.ChannelId!)
                                  .ToList();
+
+    internal bool NewAddChannelTransaction(string userId, string channelId, string url)
+    {
+        Transaction supportTokenTransaction = InitNewTransaction(userId: userId,
+                                                                 tokenType: TokenType.SupportToken,
+                                                                 transactionType: TransactionType.Withdrawal,
+                                                                 amount: 10,
+                                                                 channelId: channelId);
+
+        var user = _userRepositpry.GetById(userId);
+
+        // Insufficient balance
+        if (user.Tokens.SupportToken < 10)
+        {
+            Logger.Warning("Insufficient balance when adding new channel {ChannelId} for user {UserId}", channelId, userId);
+            supportTokenTransaction.TransactionState = TransactionState.Failed;
+            supportTokenTransaction.Note = "Insufficient balance";
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", supportTokenTransaction.id, supportTokenTransaction.Note);
+
+            _transactionRepository.Update(supportTokenTransaction);
+            _privateUnitOfWork.Commit();
+            return false;
+        }
+
+        using var scope = new System.Transactions.TransactionScope();
+        try
+        {
+            user.Tokens.SupportToken -= 10;
+            _userRepositpry.Update(user);
+
+            supportTokenTransaction.TransactionState = TransactionState.Pending;
+            supportTokenTransaction.Note = $"User {userId} add new channel {channelId} for {url}";
+            Logger.Information("Pending transaction {TransactionId} for user {UserId}", supportTokenTransaction.id, userId);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e, "Error when adding channel {ChannelId}", channelId);
+
+            supportTokenTransaction = _transactionRepository.GetById(supportTokenTransaction.id);   // For insurance
+            supportTokenTransaction.TransactionState = TransactionState.Failed;
+            supportTokenTransaction.Note = $"Error when adding channel {channelId}";
+            Logger.Warning("Transaction failed: {TransactionId} {Note}", supportTokenTransaction.id, supportTokenTransaction.Note);
+
+            return false;
+        }
+        finally
+        {
+            _transactionRepository.Update(supportTokenTransaction);
+            _privateUnitOfWork.Commit();
+            scope.Complete();
+        }
+
+        return true;
+    }
 
     #region Dispose
     protected virtual void Dispose(bool disposing)

@@ -1,5 +1,5 @@
-﻿using LivestreamRecorderBackend.DB.Exceptions;
-using LivestreamRecorderBackend.DB.Models;
+﻿using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Services;
 using Serilog;
 using System;
