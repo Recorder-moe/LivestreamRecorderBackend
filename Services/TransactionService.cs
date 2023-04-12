@@ -481,6 +481,7 @@ internal class TransactionService : IDisposable
         try
         {
             user.Tokens.SupportToken -= 10;
+            user.Tokens.DownloadToken += 10;
             _userRepositpry.Update(user);
 
             supportTokenTransaction.TransactionState = TransactionState.Pending;
