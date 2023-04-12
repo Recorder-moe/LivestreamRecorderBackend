@@ -3,12 +3,8 @@ using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Omu.ValueInjecter;
 using Serilog;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -64,7 +60,7 @@ public class UserService : IDisposable
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
-        string ? authType = claimsPrincipal.Identity?.AuthenticationType;
+        string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user = null;
 
@@ -72,7 +68,8 @@ public class UserService : IDisposable
         {
             user = GetUserFromClaimsPrincipal(claimsPrincipal);
         }
-        catch (EntityNotFoundException) {
+        catch (EntityNotFoundException)
+        {
             user = MigrateUser(claimsPrincipal);
         }
 
@@ -86,10 +83,14 @@ public class UserService : IDisposable
             {
                 id = Guid.NewGuid().ToString(),
                 UserName = userName ?? "Valuable User",
-                Email = userEmail ?? throw new InvalidOperationException("Email is empty!!"),
+                Email = userEmail ?? "",
                 Picture = userPicture,
                 RegistrationDate = DateTime.Now,
                 Tokens = new Tokens()
+                {
+                    SupportToken = 5,
+                    DownloadToken = 0
+                }
             };
 
             string? uid = GetUID(claimsPrincipal);
@@ -103,7 +104,7 @@ public class UserService : IDisposable
                     user.GithubUID = uid;
                     break;
                 case "aad":
-                    user.MicrosoftUID= uid;
+                    user.MicrosoftUID = uid;
                     break;
                 default:
                     Logger.Error("Authentication Type {authType} is not support!!", authType);
