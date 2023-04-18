@@ -147,7 +147,7 @@ internal class TransactionService : IDisposable
                 downloadTokenTransaction.Note = $"User {userId} support channel {channelId}";
                 _transactionRepository.Update(downloadTokenTransaction);
                 _privateUnitOfWork.Commit();
-                Logger.Information("Success transaction {TransactionId} for user {UserId}", supportTokenTransaction.id, userId);
+                Logger.Information("Success transaction {TransactionId} for user {UserId}", downloadTokenTransaction.id, userId);
             }
             catch (Exception e)
             {
@@ -327,7 +327,7 @@ internal class TransactionService : IDisposable
                     url: $"{Environment.GetEnvironmentVariable("EcPay_ClientBackURL")}?showPaymentFinished={transaction.id}",
                     needExtraPaidInfo: false)
                 .Transaction.New(
-                    no: $"recorder{DateTimeOffset.UtcNow.ToUnixTimeSeconds():D12}", // Overwrite later
+                    no: $"recorder{DateTimeOffset.UtcNow.ToUnixTimeSeconds():D12}",
                     description: description,
                     date: transaction.Timestamp)
                 .Transaction.UseMethod(
