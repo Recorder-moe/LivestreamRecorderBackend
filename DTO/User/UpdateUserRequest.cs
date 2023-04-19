@@ -1,4 +1,6 @@
 ﻿#nullable disable warnings
+using LivestreamRecorder.DB.Models;
+
 namespace LivestreamRecorderBackend.DTO.User;
 
 public class UpdateUserRequest
@@ -9,4 +11,5 @@ public class UpdateUserRequest
     public string? Email { get; set; }
     public string? UserName { get; set; }
     public string? Note { get; set; }
+    public Referral? Referral { get; set; }
 }

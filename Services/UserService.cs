@@ -3,6 +3,7 @@ using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
+using LivestreamRecorderBackend.Helper;
 using Serilog;
 using System;
 using System.Linq;
@@ -90,6 +91,13 @@ public class UserService : IDisposable
                 {
                     SupportToken = 5,
                     DownloadToken = 0
+                },
+                Referral = new Referral()
+                {
+                    Code = null,
+                    Clicked = 0,
+                    Referees = 0,
+                    Earned = 0
                 }
             };
 
@@ -154,6 +162,32 @@ public class UserService : IDisposable
         user.Note = request.Note ?? user.Note;
 
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
+
+        if (!string.IsNullOrEmpty(request.Referral?.Code)) {
+            // Only update if exists referral code is empty
+            if (string.IsNullOrEmpty(user.Referral?.Code))
+            {
+                user.Referral ??= new Referral();
+
+                if (request.Referral.Code == "noReferral")
+                {
+                    user.Referral.Code = AESHelper.GenerateReferralCode(Guid.Empty.ToString(), user);
+                }
+                else
+                {
+                    user.Referral.Code = request.Referral.Code;
+
+                    string? referrerId = AESHelper.GetReferrerIdFromReferee(user);
+                    if (null != referrerId)
+                    {
+                        var referrer = _userRepository.GetById(referrerId);
+                        referrer.Referral ??= new Referral();
+                        referrer.Referral.Referees++;
+                        _userRepository.Update(referrer);
+                    }
+                }
+            }
+        }
 
         var entry = _userRepository.Update(user);
         _privateUnitOfWork.Commit();
