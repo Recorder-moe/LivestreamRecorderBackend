@@ -277,6 +277,7 @@ public class UserService : IDisposable
                 }
 
                 referrer.Referral ??= new Referral();
+                referrer.Referral.Clicked++;
                 referrer.Referral.Referees++;
                 _userRepository.Update(referrer);
 
