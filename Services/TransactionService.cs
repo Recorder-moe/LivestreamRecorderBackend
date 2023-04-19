@@ -5,6 +5,7 @@ using LivestreamRecorder.DB.Enum;
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
+using LivestreamRecorderBackend.Helper;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -312,7 +313,7 @@ internal class TransactionService : IDisposable
         return transaction.id;
     }
 
-    internal IPayment? BuySupportTokens(string userId, decimal amount)
+    internal IPayment? BuySupportTokens(string userId, decimal amount, decimal discount)
     {
         string description = $"User buy {amount} support tokens.";
         Transaction transaction = InitNewTransaction(userId: userId,
@@ -342,16 +343,20 @@ internal class TransactionService : IDisposable
                             Quantity = Convert.ToInt32(amount)
                         } },
                     url: null,
-                    amount: null)
+                    amount: (int)(STPrice * amount * (1 - discount)))
                 .Transaction.WithCustomFields(
                     field1: transaction.id,
                     field2: userId)
                 .Generate();
 
-            // Overwrite IgnorePayment and recalculate CheckMacValue
+            // Customize payment and recalculate CheckMacValue
             var checkMac = new CheckMac(hashKey: Environment.GetEnvironmentVariable("EcPay_HashKey"),
                                         hashIV: Environment.GetEnvironmentVariable("EcPay_HashIV"));
             payment.IgnorePayment = "CVS#BARCODE";
+            if (discount > 0)
+            {
+                payment.ItemName += $" (折扣 {discount * 100}%)";
+            }
             payment.CheckMacValue = null;
             payment.CheckMacValue = checkMac.GetValue(payment);
 
@@ -378,6 +383,34 @@ internal class TransactionService : IDisposable
             _transactionRepository.Update(transaction);
             _privateUnitOfWork.Commit();
         }
+    }
+
+    /// <summary>
+    /// 計算折扣
+    /// </summary>
+    /// <param name="user"></param>
+    /// <returns>折扣，0為原價，0.1為折價10%(也就是打九折)</returns>
+    internal decimal CalculateDiscount(User user)
+    {
+        decimal discount = 0;
+        if (null == (user.Referral?.Code)) return discount;
+
+        var referrerId = AESHelper.GetReferrerIdFromReferee(user);
+        if (string.IsNullOrEmpty(referrerId)) return discount;
+
+        bool firstPurchased = GetTransactionsByUser(user.id)
+            .All(p => p.TransactionState != TransactionState.Cancel
+                      && p.TokenType == TokenType.SupportToken
+                      && p.TransactionType == TransactionType.Deposit
+                      // 推薦計劃專案上線之後的交易
+                      && p.Timestamp > new DateTime(2023, 4, 20));
+        if (firstPurchased)
+        {
+            Logger.Information("{userId} 因推薦計劃而首購折價 10%", user.id);
+            discount = 0.1M;
+        }
+
+        return discount;
     }
 
     internal void EcPayReturnEndpoint(PaymentResult paymentResult)
