@@ -1,5 +1,5 @@
 ﻿using LivestreamRecorder.DB.Models;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.WebUtilities;
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -98,7 +98,7 @@ internal static class AESHelper
                 //Write all data to the stream.
                 swEncrypt.Write(plainText);
             }
-            encrypted = Base64UrlEncoder.Encode(msEncrypt.ToArray());
+            encrypted = WebEncoders.Base64UrlEncode(msEncrypt.ToArray());
         }
 
         // Return the encrypted bytes from the memory stream.
@@ -140,7 +140,7 @@ internal static class AESHelper
             ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
 
             // Create the streams used for decryption.
-            using MemoryStream msDecrypt = new(Base64UrlEncoder.DecodeBytes(cipherText));
+            using MemoryStream msDecrypt = new(WebEncoders.Base64UrlDecode(cipherText));
             using CryptoStream csDecrypt = new(msDecrypt, decryptor, CryptoStreamMode.Read);
             using StreamReader srDecrypt = new(csDecrypt);
 

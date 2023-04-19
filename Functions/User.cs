@@ -134,6 +134,63 @@ public class User
         }
     }
 
+    [FunctionName(nameof(AddUserReferralCode))]
+    [OpenApiOperation(operationId: nameof(AddUserReferralCode), tags: new[] { nameof(User) })]
+    [OpenApiRequestBody("application/json", typeof(AddUserReferralCodeRequest), Required = true)]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
+    public IActionResult AddUserReferralCode(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User/ReferralCode")] HttpRequest req, ClaimsPrincipal principal)
+    {
+        try
+        {
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
+            using var userService = new UserService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = streamReader.ReadToEnd();
+            }
+            AddUserReferralCodeRequest data = JsonConvert.DeserializeObject<AddUserReferralCodeRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            if (!string.IsNullOrEmpty(data.id))
+            {
+                if (data.id != user.id)
+                {
+                    Logger.Warning("User {userId} tried to add referralCode of user {userIdToModify} but is not the owner of the user", user.id, data.id);
+                    return new ForbidResult();
+                }
+            }
+            if (string.IsNullOrEmpty(data.id) || string.IsNullOrEmpty(data.ReferralCode))
+            {
+                return new BadRequestObjectResult("Missing parameters.");
+            }
+
+            user = userService.AddUserReferralCode(data, user);
+            var result = new GetUserResponse();
+            if (null != user) result.InjectFrom(user);
+            return new JsonResult(result, new JsonSerializerSettings()
+            {
+                ContractResolver = new DefaultContractResolver()
+            });
+        }
+        catch (Exception e)
+        {
+            if (e is InvalidOperationException)
+            {
+                Logger.Warning(e, e.Message);
+                Helper.Log.LogClaimsPrincipal(principal);
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddUserReferralCode), e);
+            return new InternalServerErrorResult();
+        }
+    }
 
     [FunctionName(nameof(GetSupportedChannels))]
     [OpenApiOperation(operationId: nameof(GetSupportedChannels), tags: new[] { nameof(User) })]

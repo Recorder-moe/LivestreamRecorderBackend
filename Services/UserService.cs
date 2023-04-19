@@ -4,6 +4,7 @@ using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
 using LivestreamRecorderBackend.Helper;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System;
 using System.Linq;
@@ -163,32 +164,6 @@ public class UserService : IDisposable
 
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
-        if (!string.IsNullOrEmpty(request.Referral?.Code)) {
-            // Only update if exists referral code is empty
-            if (string.IsNullOrEmpty(user.Referral?.Code))
-            {
-                user.Referral ??= new Referral();
-
-                if (request.Referral.Code == "noReferral")
-                {
-                    user.Referral.Code = AESHelper.GenerateReferralCode(Guid.Empty.ToString(), user);
-                }
-                else
-                {
-                    user.Referral.Code = request.Referral.Code;
-
-                    string? referrerId = AESHelper.GetReferrerIdFromReferee(user);
-                    if (null != referrerId)
-                    {
-                        var referrer = _userRepository.GetById(referrerId);
-                        referrer.Referral ??= new Referral();
-                        referrer.Referral.Referees++;
-                        _userRepository.Update(referrer);
-                    }
-                }
-            }
-        }
-
         var entry = _userRepository.Update(user);
         _privateUnitOfWork.Commit();
         return entry.Entity;
@@ -274,6 +249,47 @@ public class UserService : IDisposable
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
         }
+        return user;
+    }
+
+    internal User AddUserReferralCode(AddUserReferralCodeRequest request, User user)
+    {
+        if (string.IsNullOrEmpty(request.ReferralCode)) return user;
+
+        // Only update if exists referral code is empty
+        if (!string.IsNullOrEmpty(user.Referral?.Code)) return user;
+
+        user.Referral ??= new Referral();
+
+        if (request.ReferralCode == "noReferral")
+        {
+            user.Referral.Code = AESHelper.GenerateReferralCode(Guid.Empty.ToString(), user);
+        }
+        else
+        {
+            var referrer = _userRepository.Where(p => p.Referral!.Code == request.ReferralCode)
+                                          .SingleOrDefault();
+            if (null != referrer)
+            {
+                if (referrer.RegistrationDate > user.RegistrationDate)
+                {
+                    throw new InvalidOperationException("Referrer registration date is later than referee registration date.");
+                }
+
+                referrer.Referral ??= new Referral();
+                referrer.Referral.Referees++;
+                _userRepository.Update(referrer);
+
+                user.Referral.Code = AESHelper.GenerateReferralCode(referrer.id, user);
+            }
+            else
+            {
+                throw new InvalidOperationException("Referrer not found.");
+            }
+        }
+        _userRepository.Update(user);
+        _privateUnitOfWork.Commit();
+
         return user;
     }
 
