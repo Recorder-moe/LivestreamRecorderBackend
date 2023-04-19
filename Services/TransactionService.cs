@@ -416,8 +416,7 @@ internal class TransactionService : IDisposable
     internal void EcPayReturnEndpoint(PaymentResult paymentResult)
     {
         Transaction transaction = _transactionRepository.GetById(paymentResult.CustomField1);
-        if (transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo
-           || paymentResult.TradeAmt != transaction.Amount * STPrice)
+        if (transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo)
         {
             Logger.Warning("EcPay does not return a response which matches our transaction data. {transactionId}", transaction.id);
             return;
