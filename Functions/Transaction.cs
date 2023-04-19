@@ -192,7 +192,9 @@ public class Transaction
 
             if (user.id != data.UserId) return new ForbidResult();
 
-            var payment = transactionService.BuySupportTokens(data.UserId, data.Amount);
+            var discount = transactionService.CalculateDiscount(user);
+
+            var payment = transactionService.BuySupportTokens(data.UserId, data.Amount, discount);
 
             return payment == null
                 ? new BadRequestResult()

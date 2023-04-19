@@ -5,6 +5,7 @@ using LivestreamRecorder.DB.Enum;
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
+using LivestreamRecorderBackend.Helper;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ internal class TransactionService : IDisposable
     private readonly IUnitOfWork _privateUnitOfWork;
     private readonly TransactionRepository _transactionRepository;
     private readonly IUnitOfWork _publicUnitOfWork;
-    private readonly UserRepository _userRepositpry;
+    private readonly UserRepository _userRepository;
     private readonly ChannelRepository _channelRepository;
     private readonly VideoRepository _videoRepository;
     private readonly IPaymentConfiguration _paymentConfiguration;
@@ -33,7 +34,7 @@ internal class TransactionService : IDisposable
     {
         (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext, UnitOfWork_Private>();
         _transactionRepository = new TransactionRepository((UnitOfWork_Private)_privateUnitOfWork);
-        _userRepositpry = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
+        _userRepository = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
 
         (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
         _channelRepository = new ChannelRepository((UnitOfWork_Public)_publicUnitOfWork);
@@ -100,7 +101,7 @@ internal class TransactionService : IDisposable
                                                                  amount: amount,
                                                                  channelId: channelId);
 
-        var user = _userRepositpry.GetById(userId);
+        var user = _userRepository.GetById(userId);
         var channel = _channelRepository.GetById(channelId);
         channel.SupportToken ??= 0;
 
@@ -142,7 +143,7 @@ internal class TransactionService : IDisposable
                 Logger.Information("Success transaction {TransactionId} for user {UserId}", supportTokenTransaction.id, userId);
 
                 user.Tokens.DownloadToken += amount;
-                _userRepositpry.Update(user);
+                _userRepository.Update(user);
                 downloadTokenTransaction.TransactionState = TransactionState.Success;
                 downloadTokenTransaction.Note = $"User {userId} support channel {channelId}";
                 _transactionRepository.Update(downloadTokenTransaction);
@@ -185,7 +186,7 @@ internal class TransactionService : IDisposable
                                                                  channelId: video.ChannelId,
                                                                  videoId: videoId);
 
-        var user = _userRepositpry.GetById(userId);
+        var user = _userRepository.GetById(userId);
         if (user.Tokens.DownloadToken < amount)
         {
             Logger.Warning("Insufficient balance when downloading video {VideoId} for user {UserId}", videoId, userId);
@@ -219,7 +220,7 @@ internal class TransactionService : IDisposable
             {
                 // Spend tokens
                 user.Tokens.DownloadToken -= amount;
-                _userRepositpry.Update(user);
+                _userRepository.Update(user);
                 //_privateUnitOfWork.Commit();
                 Logger.Information("User {user} successfully spend {amount} download tokens for the video {videoId}", user.id, amount, videoId);
 
@@ -278,14 +279,14 @@ internal class TransactionService : IDisposable
                                                      transactionType: TransactionType.Deposit,
                                                      amount: amount);
 
-        var user = _userRepositpry.GetById(userId);
+        var user = _userRepository.GetById(userId);
 
         using (var scope = new System.Transactions.TransactionScope())
         {
             try
             {
                 user.Tokens.SupportToken += amount;
-                _userRepositpry.Update(user);
+                _userRepository.Update(user);
                 transaction.TransactionState = TransactionState.Success;
                 transaction.Note = $"User claims {amount} support tokens.";
                 _transactionRepository.Update(transaction);
@@ -312,7 +313,7 @@ internal class TransactionService : IDisposable
         return transaction.id;
     }
 
-    internal IPayment? BuySupportTokens(string userId, decimal amount)
+    internal IPayment? BuySupportTokens(string userId, decimal amount, decimal discount)
     {
         string description = $"User buy {amount} support tokens.";
         Transaction transaction = InitNewTransaction(userId: userId,
@@ -342,16 +343,20 @@ internal class TransactionService : IDisposable
                             Quantity = Convert.ToInt32(amount)
                         } },
                     url: null,
-                    amount: null)
+                    amount: (int)(STPrice * amount * (1 - discount)))
                 .Transaction.WithCustomFields(
                     field1: transaction.id,
                     field2: userId)
                 .Generate();
 
-            // Overwrite IgnorePayment and recalculate CheckMacValue
+            // Customize payment and recalculate CheckMacValue
             var checkMac = new CheckMac(hashKey: Environment.GetEnvironmentVariable("EcPay_HashKey"),
                                         hashIV: Environment.GetEnvironmentVariable("EcPay_HashIV"));
             payment.IgnorePayment = "CVS#BARCODE";
+            if (discount > 0)
+            {
+                payment.ItemName += $" (折扣 {discount:P0})";
+            }
             payment.CheckMacValue = null;
             payment.CheckMacValue = checkMac.GetValue(payment);
 
@@ -380,16 +385,44 @@ internal class TransactionService : IDisposable
         }
     }
 
+    /// <summary>
+    /// 計算折扣
+    /// </summary>
+    /// <param name="user"></param>
+    /// <returns>折扣，0為原價，0.1為折價10%(也就是打九折)</returns>
+    internal decimal CalculateDiscount(User user)
+    {
+        decimal discount = 0;
+        if (null == (user.Referral?.Code)) return discount;
+
+        var referrerId = AESHelper.GetReferrerIdFromReferee(user);
+        if (string.IsNullOrEmpty(referrerId)) return discount;
+
+        bool notFirstPurchased = GetTransactionsByUser(user.id)
+                .Any(p => p.TransactionState != TransactionState.Cancel
+                          && p.TokenType == TokenType.SupportToken
+                          && p.TransactionType == TransactionType.Deposit
+                          // 推薦計劃專案上線之後的交易
+                          && p.Timestamp > new DateTime(2023, 4, 18));
+        if (!notFirstPurchased)
+        {
+            Logger.Information("{userId} 因推薦計劃而首購折價 10%", user.id);
+            discount = 0.1M;
+        }
+
+        return discount;
+    }
+
     internal void EcPayReturnEndpoint(PaymentResult paymentResult)
     {
         Transaction transaction = _transactionRepository.GetById(paymentResult.CustomField1);
-        if (transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo
-           || paymentResult.TradeAmt != transaction.Amount * STPrice)
+        if (transaction.EcPayMerchantTradeNo != paymentResult.MerchantTradeNo)
         {
             Logger.Warning("EcPay does not return a response which matches our transaction data. {transactionId}", transaction.id);
             return;
         }
 
+        using var scope = new System.Transactions.TransactionScope();
         try
         {
             transaction.EcPayTradeNo = paymentResult.TradeNo;
@@ -407,16 +440,19 @@ internal class TransactionService : IDisposable
                 return;
             }
 
-            var user = _userRepositpry.GetById(paymentResult.CustomField2);
+            var user = _userRepository.GetById(paymentResult.CustomField2);
             transaction.TransactionState = TransactionState.Success;
             if (paymentResult.SimulatePaid == 1)
             {
                 Logger.Warning("Get simulated payment! Simulate {userId} add {amount} ST.", user.id, transaction.Amount);
-                return;
+                //return;
             }
 
             user.Tokens.SupportToken += transaction.Amount;
-            _userRepositpry.Update(user);
+            _userRepository.Update(user);
+
+            RewardReferrer(transaction);
+
             Logger.Information("Success transaction {TransactionId} for user {UserId}, {EcPayTradeNo} {EcPayPaymentDate} {EcPayTradeAmt}", transaction.id, user.id, paymentResult.TradeNo, paymentResult.PaymentDate, paymentResult.TradeAmt);
         }
         catch (Exception e)
@@ -432,6 +468,39 @@ internal class TransactionService : IDisposable
         {
             _transactionRepository.Update(transaction);
             _privateUnitOfWork.Commit();
+            scope.Complete();
+        }
+    }
+
+    /// <summary>
+    /// 推薦計劃獎勵推薦者
+    /// </summary>
+    /// <param name="transaction"></param>
+    private void RewardReferrer(Transaction transaction)
+    {
+        transaction = _transactionRepository.LoadRelatedData(transaction);
+        if (null != transaction.User.Referral?.Code)
+        {
+            var referrerId = AESHelper.GetReferrerIdFromReferee(transaction.User);
+            if (!string.IsNullOrEmpty(referrerId))
+            {
+                var reward = Math.Floor(transaction.Amount * 0.1M);
+                var referrer = _userRepository.GetById(referrerId);
+                if (referrer != null)
+                {
+                    var referrerTransaction = InitNewTransaction(userId: referrer.id,
+                                                                 tokenType: TokenType.SupportToken,
+                                                                 transactionType: TransactionType.Deposit,
+                                                                 amount: reward);
+                    referrerTransaction.Note = $"Referral program rewards {reward} ST: Referee purchased {transaction.Amount} ST, transaction ID {transaction.id}";
+                    referrerTransaction.TransactionState = TransactionState.Success;
+                    //_transactionRepository.Update(referrerTransaction);
+
+                    referrer.Tokens.SupportToken += reward;
+                    referrer.Referral!.Earned += (int)reward;
+                    _userRepository.Update(referrer);
+                }
+            }
         }
     }
 
@@ -462,7 +531,7 @@ internal class TransactionService : IDisposable
                                                                  amount: 10,
                                                                  channelId: channelId);
 
-        var user = _userRepositpry.GetById(userId);
+        var user = _userRepository.GetById(userId);
 
         // Insufficient balance
         if (user.Tokens.SupportToken < 10)
@@ -482,7 +551,7 @@ internal class TransactionService : IDisposable
         {
             user.Tokens.SupportToken -= 10;
             user.Tokens.DownloadToken += 10;
-            _userRepositpry.Update(user);
+            _userRepository.Update(user);
 
             supportTokenTransaction.TransactionState = TransactionState.Pending;
             supportTokenTransaction.Note = $"User {userId} add new channel {channelId} for {url}";

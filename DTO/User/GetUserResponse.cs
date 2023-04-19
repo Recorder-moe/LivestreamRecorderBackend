@@ -16,4 +16,5 @@ internal class GetUserResponse
     public string? Note { get; set; }
     public string? GoogleUID { get; set; }
     public Tokens Tokens { get; set; }
+    public Referral? Referral { get; set; }
 }
