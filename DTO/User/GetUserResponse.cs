@@ -17,4 +17,5 @@ internal class GetUserResponse
     public string? GoogleUID { get; set; }
     public Tokens Tokens { get; set; }
     public Referral? Referral { get; set; }
+    public string[]? ManagedChannels { get; set; }
 }
