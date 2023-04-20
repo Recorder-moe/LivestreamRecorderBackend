@@ -93,6 +93,7 @@ public class Video
 
             using var userService = new UserService();
             using var videoService = new VideoService();
+            using var transactionService = new TransactionService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -111,6 +112,7 @@ public class Video
             }
 
             videoService.BlockVideo(video, data, blobContainerClient);
+            transactionService.RefundDownloadVideoDT(video, data.Note);
 
             return new OkResult();
         }

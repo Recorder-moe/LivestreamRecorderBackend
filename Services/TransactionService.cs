@@ -202,7 +202,7 @@ internal class TransactionService : IDisposable
 
         // Check if video archived date is after first channel support date
         Transaction? firstSupportTransaction = GetFirstSupportTransaction(video.ChannelId, user.id);
-        if (!isAdmin 
+        if (!isAdmin
             && (null == firstSupportTransaction
                || firstSupportTransaction.Timestamp > video.ArchivedTime))
         {
@@ -585,6 +585,36 @@ internal class TransactionService : IDisposable
         }
 
         return true;
+    }
+
+    internal void RefundDownloadVideoDT(Video video, string? note)
+    {
+        List<Transaction> downloadTransactions = _transactionRepository.Where(p => p.VideoId == video.id
+                                                                                   && p.TokenType == TokenType.DownloadToken
+                                                                                   && p.TransactionState == TransactionState.Success
+                                                                                   && p.TransactionType == TransactionType.Withdrawal)
+                                                                       .ToList();
+        using var scope = new System.Transactions.TransactionScope();
+
+        foreach (Transaction transaction in downloadTransactions)
+        {
+            _transactionRepository.LoadRelatedData(transaction);
+            Transaction returnDTTransaction = InitNewTransaction(userId: transaction.UserId,
+                                                                 tokenType: TokenType.DownloadToken,
+                                                                 transactionType: TransactionType.Deposit,
+                                                                 amount: transaction.Amount,
+                                                                 channelId: transaction.ChannelId,
+                                                                 videoId: transaction.VideoId);
+            returnDTTransaction.Note = $"Refund download token for video {video.id} because {note}";
+            returnDTTransaction.TransactionState = TransactionState.Success;
+            //_transactionRepository.Update(returnDTTransaction);
+
+            var user = transaction.User;
+            user.Tokens.DownloadToken+= transaction.Amount;
+            _userRepository.Update(user);
+        }
+        _privateUnitOfWork.Commit();
+        scope.Complete();
     }
 
     #region Dispose
