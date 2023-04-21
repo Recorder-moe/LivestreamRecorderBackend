@@ -2,7 +2,8 @@
 using LivestreamRecorder.DB.Enum;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
-using Serilog;
+using LivestreamRecorderBackend.DTO.Video;
+using Omu.ValueInjecter;
 using System;
 using System.Threading.Tasks;
 
@@ -47,6 +48,15 @@ internal class VideoService : IDisposable
                    && blobClient.CanGenerateSasUri
                ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12)).Query
                : null;
+    }
+
+    internal void BlockVideo(Video video, BlockVideoRequest data, Azure.Storage.Blobs.BlobContainerClient blobContainerClient)
+    {
+        video.InjectFrom(data);
+        _videoRepository.Update(video);
+        _publicUnitOfWork.Commit();
+        var blobClient = blobContainerClient.GetBlobClient($@"/videos/{video.Filename}");
+        blobClient.DeleteIfExists();
     }
 
     #region Dispose

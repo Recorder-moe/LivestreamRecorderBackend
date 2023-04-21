@@ -178,7 +178,9 @@ internal class TransactionService : IDisposable
     {
         var video = _videoRepository.GetById(videoId);
 
-        decimal amount = CalculateConsumeToken(video.Size);
+        var user = _userRepository.GetById(userId);
+        var isAdmin = user.ManagedChannels?.Contains(video.ChannelId) == true;
+        decimal amount = isAdmin ? 0 : CalculateConsumeToken(video.Size);
         Transaction downloadTokenTransaction = InitNewTransaction(userId: userId,
                                                                  tokenType: TokenType.DownloadToken,
                                                                  transactionType: TransactionType.Withdrawal,
@@ -186,8 +188,7 @@ internal class TransactionService : IDisposable
                                                                  channelId: video.ChannelId,
                                                                  videoId: videoId);
 
-        var user = _userRepository.GetById(userId);
-        if (user.Tokens.DownloadToken < amount)
+        if (!isAdmin && user.Tokens.DownloadToken < amount)
         {
             Logger.Warning("Insufficient balance when downloading video {VideoId} for user {UserId}", videoId, userId);
             downloadTokenTransaction.TransactionState = TransactionState.Failed;
@@ -201,8 +202,9 @@ internal class TransactionService : IDisposable
 
         // Check if video archived date is after first channel support date
         Transaction? firstSupportTransaction = GetFirstSupportTransaction(video.ChannelId, user.id);
-        if (null == firstSupportTransaction
-           || firstSupportTransaction.Timestamp > video.ArchivedTime)
+        if (!isAdmin
+            && (null == firstSupportTransaction
+               || firstSupportTransaction.Timestamp > video.ArchivedTime))
         {
             Logger.Warning("Permission was denied because the video {videoId} had been recorded prior to the timestamp when the user {userId} submitted the recording request.", videoId, userId);
             downloadTokenTransaction.TransactionState = TransactionState.Failed;
@@ -218,11 +220,18 @@ internal class TransactionService : IDisposable
         {
             try
             {
-                // Spend tokens
-                user.Tokens.DownloadToken -= amount;
-                _userRepository.Update(user);
-                //_privateUnitOfWork.Commit();
-                Logger.Information("User {user} successfully spend {amount} download tokens for the video {videoId}", user.id, amount, videoId);
+                if (isAdmin)
+                {
+                    Logger.Information("User {user} successfully get the video {videoId} by admin rights", user.id, amount, videoId);
+                }
+                else
+                {
+                    // Spend tokens
+                    user.Tokens.DownloadToken -= amount;
+                    _userRepository.Update(user);
+                    //_privateUnitOfWork.Commit();
+                    Logger.Information("User {user} successfully spend {amount} download tokens for the video {videoId}", user.id, amount, videoId);
+                }
 
                 downloadTokenTransaction.TransactionState = TransactionState.Success;
                 downloadTokenTransaction.Note = $"User {userId} downloaded video {videoId}";
@@ -576,6 +585,36 @@ internal class TransactionService : IDisposable
         }
 
         return true;
+    }
+
+    internal void RefundDownloadVideoDT(Video video, string? note)
+    {
+        List<Transaction> downloadTransactions = _transactionRepository.Where(p => p.VideoId == video.id
+                                                                                   && p.TokenType == TokenType.DownloadToken
+                                                                                   && p.TransactionState == TransactionState.Success
+                                                                                   && p.TransactionType == TransactionType.Withdrawal)
+                                                                       .ToList();
+        using var scope = new System.Transactions.TransactionScope();
+
+        foreach (Transaction transaction in downloadTransactions)
+        {
+            _transactionRepository.LoadRelatedData(transaction);
+            Transaction returnDTTransaction = InitNewTransaction(userId: transaction.UserId,
+                                                                 tokenType: TokenType.DownloadToken,
+                                                                 transactionType: TransactionType.Deposit,
+                                                                 amount: transaction.Amount,
+                                                                 channelId: transaction.ChannelId,
+                                                                 videoId: transaction.VideoId);
+            returnDTTransaction.Note = $"Refund download token for video {video.id} because {note}";
+            returnDTTransaction.TransactionState = TransactionState.Success;
+            //_transactionRepository.Update(returnDTTransaction);
+
+            var user = transaction.User;
+            user.Tokens.DownloadToken+= transaction.Amount;
+            _userRepository.Update(user);
+        }
+        _privateUnitOfWork.Commit();
+        scope.Complete();
     }
 
     #region Dispose

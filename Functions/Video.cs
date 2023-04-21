@@ -1,4 +1,6 @@
 using Azure.Storage.Blobs;
+using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorderBackend.DTO.Video;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -6,9 +8,12 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -67,6 +72,64 @@ public class Video
         catch (Exception e)
         {
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSASToken), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
+    [FunctionName(nameof(BlockVideo))]
+    [OpenApiOperation(operationId: nameof(BlockVideo), tags: new[] { nameof(Video) })]
+    [OpenApiRequestBody("application/json", typeof(BlockVideoRequest), Required = true)]
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
+    public IActionResult BlockVideo(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req,
+        [Blob("livestream-recorder")] BlobContainerClient blobContainerClient,
+        ClaimsPrincipal principal)
+    {
+        try
+        {
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
+            using var userService = new UserService();
+            using var videoService = new VideoService();
+            using var transactionService = new TransactionService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = streamReader.ReadToEnd();
+            }
+            BlockVideoRequest data = JsonConvert.DeserializeObject<BlockVideoRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            var video = videoService.GetVideoById(data.id);
+
+            if ((user.ManagedChannels?.Contains(video.ChannelId)) != true)
+            {
+                Logger.Warning("User {userId} tried to patch video {videoId} but is not the admin of the channel {channelId}", user.id, video.id, video.ChannelId);
+                return new ForbidResult();
+            }
+
+            videoService.BlockVideo(video, data, blobContainerClient);
+            transactionService.RefundDownloadVideoDT(video, data.Note);
+
+            return new OkResult();
+        }
+        catch (Exception e)
+        {
+            if (e is InvalidOperationException)
+            {
+                Logger.Warning(e, e.Message);
+                Helper.Log.LogClaimsPrincipal(principal);
+                return new BadRequestObjectResult(e.Message);
+            }
+            else if (e is EntityNotFoundException)
+            {
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(BlockVideo), e);
             return new InternalServerErrorResult();
         }
     }
