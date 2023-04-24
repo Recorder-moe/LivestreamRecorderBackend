@@ -41,6 +41,7 @@ public class Transaction
             if (null == user) return new UnauthorizedResult();
 
             using var transactionService = new TransactionService();
+            using var channelService = new ChannelService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -51,6 +52,10 @@ public class Transaction
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (user.id != data.UserId) return new ForbidResult();
+
+            var channel = channelService.GetChannelById(data.ChannelId);
+            if (!channel.Monitoring && channel.CanActive == false) 
+                return new BadRequestObjectResult($"Can't active channel {data.ChannelId}");
 
             var transactionId = transactionService.NewSupportChannelTransaction(data.UserId, data.ChannelId, data.Amount);
             var transaction = transactionService.GetTransactionById(transactionId);
