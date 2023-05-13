@@ -28,47 +28,47 @@ public class Transaction
 {
     private static ILogger Logger => Helper.Log.Logger;
 
-    [FunctionName(nameof(SupportChannel))]
-    [OpenApiOperation(operationId: nameof(SupportChannel), tags: new[] { nameof(Transaction) })]
-    [OpenApiRequestBody("application/json", typeof(SupportChannelRequest), Required = true)]
-    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "The transaction id.")]
-    public IActionResult SupportChannel(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/SupportChannel")] HttpRequest req, ClaimsPrincipal principal)
-    {
-        try
-        {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
-            if (null == user) return new UnauthorizedResult();
+    //[FunctionName(nameof(SupportChannel))]
+    //[OpenApiOperation(operationId: nameof(SupportChannel), tags: new[] { nameof(Transaction) })]
+    //[OpenApiRequestBody("application/json", typeof(SupportChannelRequest), Required = true)]
+    //[OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "The transaction id.")]
+    //public IActionResult SupportChannel(
+    //    [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/SupportChannel")] HttpRequest req, ClaimsPrincipal principal)
+    //{
+    //    try
+    //    {
+    //        var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+    //        if (null == user) return new UnauthorizedResult();
 
-            using var transactionService = new TransactionService();
-            using var channelService = new ChannelService();
+    //        using var transactionService = new TransactionService();
+    //        using var channelService = new ChannelService();
 
-            string requestBody = string.Empty;
-            using (StreamReader streamReader = new(req.Body))
-            {
-                requestBody = streamReader.ReadToEnd();
-            }
-            SupportChannelRequest data = JsonConvert.DeserializeObject<SupportChannelRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+    //        string requestBody = string.Empty;
+    //        using (StreamReader streamReader = new(req.Body))
+    //        {
+    //            requestBody = streamReader.ReadToEnd();
+    //        }
+    //        SupportChannelRequest data = JsonConvert.DeserializeObject<SupportChannelRequest>(requestBody)
+    //            ?? throw new InvalidOperationException("Invalid request body!!");
 
-            if (user.id != data.UserId) return new ForbidResult();
+    //        if (user.id != data.UserId) return new ForbidResult();
 
-            var channel = channelService.GetChannelById(data.ChannelId);
-            if (!channel.Monitoring && channel.CanActive == false) 
-                return new BadRequestObjectResult($"Can't active channel {data.ChannelId}");
+    //        var channel = channelService.GetChannelById(data.ChannelId);
+    //        if (!channel.Monitoring && channel.CanActive == false) 
+    //            return new BadRequestObjectResult($"Can't active channel {data.ChannelId}");
 
-            var transactionId = transactionService.NewSupportChannelTransaction(data.UserId, data.ChannelId, data.Amount);
-            var transaction = transactionService.GetTransactionById(transactionId);
-            return transaction.TransactionState == TransactionState.Success
-                ? new OkObjectResult(transaction.id)
-                : new BadRequestObjectResult(transaction.id);
-        }
-        catch (Exception e)
-        {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(SupportChannel), e);
-            return new InternalServerErrorResult();
-        }
-    }
+    //        var transactionId = transactionService.NewSupportChannelTransaction(data.UserId, data.ChannelId, data.Amount);
+    //        var transaction = transactionService.GetTransactionById(transactionId);
+    //        return transaction.TransactionState == TransactionState.Success
+    //            ? new OkObjectResult(transaction.id)
+    //            : new BadRequestObjectResult(transaction.id);
+    //    }
+    //    catch (Exception e)
+    //    {
+    //        Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(SupportChannel), e);
+    //        return new InternalServerErrorResult();
+    //    }
+    //}
 
     [FunctionName(nameof(GetTransaction))]
     [OpenApiOperation(operationId: nameof(GetTransaction), tags: new[] { nameof(Transaction) })]
@@ -173,44 +173,44 @@ public class Transaction
     }
 #endif
 
-    [FunctionName(nameof(BuySupportTokens))]
-    [OpenApiOperation(operationId: nameof(BuySupportTokens), tags: new[] { nameof(Transaction) })]
-    [OpenApiRequestBody("application/json", typeof(BuySupportTokensRequest), Required = true)]
-    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(IPayment), Description = "EcPay payment form post parameters.")]
-    public async Task<IActionResult> BuySupportTokens(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/BuySupportTokens")] HttpRequest req, ClaimsPrincipal principal)
-    {
-        try
-        {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
-            if (null == user) return new UnauthorizedResult();
+    //[FunctionName(nameof(BuySupportTokens))]
+    //[OpenApiOperation(operationId: nameof(BuySupportTokens), tags: new[] { nameof(Transaction) })]
+    //[OpenApiRequestBody("application/json", typeof(BuySupportTokensRequest), Required = true)]
+    //[OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(IPayment), Description = "EcPay payment form post parameters.")]
+    //public async Task<IActionResult> BuySupportTokens(
+    //    [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Transaction/BuySupportTokens")] HttpRequest req, ClaimsPrincipal principal)
+    //{
+    //    try
+    //    {
+    //        var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+    //        if (null == user) return new UnauthorizedResult();
 
-            using var transactionService = new TransactionService();
+    //        using var transactionService = new TransactionService();
 
-            string requestBody = string.Empty;
-            using (StreamReader streamReader = new(req.Body))
-            {
-                requestBody = await streamReader.ReadToEndAsync();
-            }
-            BuySupportTokensRequest data = JsonConvert.DeserializeObject<BuySupportTokensRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+    //        string requestBody = string.Empty;
+    //        using (StreamReader streamReader = new(req.Body))
+    //        {
+    //            requestBody = await streamReader.ReadToEndAsync();
+    //        }
+    //        BuySupportTokensRequest data = JsonConvert.DeserializeObject<BuySupportTokensRequest>(requestBody)
+    //            ?? throw new InvalidOperationException("Invalid request body!!");
 
-            if (user.id != data.UserId) return new ForbidResult();
+    //        if (user.id != data.UserId) return new ForbidResult();
 
-            var discount = transactionService.CalculateDiscount(user);
+    //        var discount = transactionService.CalculateDiscount(user);
 
-            var payment = transactionService.BuySupportTokens(data.UserId, data.Amount, discount);
+    //        var payment = transactionService.BuySupportTokens(data.UserId, data.Amount, discount);
 
-            return payment == null
-                ? new BadRequestResult()
-                : new OkObjectResult(payment);
-        }
-        catch (Exception e)
-        {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(BuySupportTokens), e);
-            return new InternalServerErrorResult();
-        }
-    }
+    //        return payment == null
+    //            ? new BadRequestResult()
+    //            : new OkObjectResult(payment);
+    //    }
+    //    catch (Exception e)
+    //    {
+    //        Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(BuySupportTokens), e);
+    //        return new InternalServerErrorResult();
+    //    }
+    //}
 
     [FunctionName(nameof(EcPayReturnEndpoint))]
     [OpenApiOperation(operationId: nameof(EcPayReturnEndpoint), tags: new[] { nameof(Transaction) })]
