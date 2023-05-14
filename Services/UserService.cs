@@ -3,7 +3,6 @@ using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
-using LivestreamRecorderBackend.Helper;
 using Serilog;
 using System;
 using System.Linq;
@@ -88,18 +87,6 @@ public class UserService : IDisposable
                 Email = userEmail ?? "",
                 Picture = userPicture,
                 RegistrationDate = DateTime.Now,
-                Tokens = new Tokens()
-                {
-                    SupportToken = 5,
-                    DownloadToken = 0
-                },
-                Referral = new Referral()
-                {
-                    Code = null,
-                    Clicked = 0,
-                    Referees = 0,
-                    Earned = 0
-                },
                 IsAdmin = UserCount == 0
             };
 
@@ -256,48 +243,6 @@ public class UserService : IDisposable
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
         }
-        return user;
-    }
-
-    internal User AddUserReferralCode(AddUserReferralCodeRequest request, User user)
-    {
-        if (string.IsNullOrEmpty(request.ReferralCode)) return user;
-
-        // Only update if exists referral code is empty
-        if (!string.IsNullOrEmpty(user.Referral?.Code)) return user;
-
-        user.Referral ??= new Referral();
-
-        if (request.ReferralCode == "noReferral")
-        {
-            user.Referral.Code = AESHelper.GenerateReferralCode(Guid.Empty.ToString(), user);
-        }
-        else
-        {
-            var referrer = _userRepository.Where(p => p.Referral!.Code == request.ReferralCode)
-                                          .SingleOrDefault();
-            if (null != referrer)
-            {
-                if (referrer.RegistrationDate > user.RegistrationDate)
-                {
-                    throw new InvalidOperationException("Referrer registration date is later than referee registration date.");
-                }
-
-                referrer.Referral ??= new Referral();
-                referrer.Referral.Clicked++;
-                referrer.Referral.Referees++;
-                _userRepository.Update(referrer);
-
-                user.Referral.Code = AESHelper.GenerateReferralCode(referrer.id, user);
-            }
-            else
-            {
-                throw new InvalidOperationException("Referrer not found.");
-            }
-        }
-        _userRepository.Update(user);
-        _privateUnitOfWork.Commit();
-
         return user;
     }
 

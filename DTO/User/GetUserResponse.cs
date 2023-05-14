@@ -1,5 +1,4 @@
-﻿using LivestreamRecorder.DB.Models;
-using System;
+﻿using System;
 #nullable disable warnings
 
 namespace LivestreamRecorderBackend.DTO.User;
@@ -15,8 +14,7 @@ internal class GetUserResponse
     public DateTime RegistrationDate { get; set; }
     public string? Note { get; set; }
     public string? GoogleUID { get; set; }
+    public string? GithubUID { get; set; }
+    public string? MicrosoftUID { get; set; }
     public bool IsAdmin { get; set; }
-    public Tokens Tokens { get; set; }
-    public Referral? Referral { get; set; }
-    public string[]? ManagedChannels { get; set; }
 }
