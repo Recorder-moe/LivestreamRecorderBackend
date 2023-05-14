@@ -1,3 +1,4 @@
+using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorderBackend.DTO.User;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
@@ -78,7 +79,7 @@ public class User
         }
         catch (Exception e)
         {
-            if (e is NotSupportedException)
+            if (e is NotSupportedException or EntityNotFoundException)
             {
                 Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);

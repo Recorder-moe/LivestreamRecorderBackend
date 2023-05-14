@@ -4,7 +4,6 @@ using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
 using LivestreamRecorderBackend.Helper;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System;
 using System.Linq;
@@ -64,8 +63,7 @@ public class UserService : IDisposable
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
         string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
-        User? user = null;
-
+        User? user;
         try
         {
             user = GetUserFromClaimsPrincipal(claimsPrincipal);
@@ -78,9 +76,11 @@ public class UserService : IDisposable
         string? userEmail = user?.Email ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
-        if (null == user)
+        // First user
+        int UserCount = _userRepository.All().Count();
+        if (UserCount == 0
+            || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true)
         {
-            // New user
             user = new User()
             {
                 id = Guid.NewGuid().ToString(),
@@ -99,7 +99,8 @@ public class UserService : IDisposable
                     Clicked = 0,
                     Referees = 0,
                     Earned = 0
-                }
+                },
+                IsAdmin = UserCount == 0
             };
 
             string? uid = GetUID(claimsPrincipal);
@@ -125,11 +126,17 @@ public class UserService : IDisposable
 
             _userRepository.Add(user);
         }
-        else if (user.Picture != userPicture)
+        else if (null == user)
+        {
+            throw new EntityNotFoundException($"Cannot create new user {claimsPrincipal.Identity?.Name}. Registration for this site is not permitted.");
+        }
+
+        if (user.Picture != userPicture)
         {
             user.Picture = userPicture;
             _userRepository.Update(user);
         }
+
         _privateUnitOfWork.Commit();
     }
 

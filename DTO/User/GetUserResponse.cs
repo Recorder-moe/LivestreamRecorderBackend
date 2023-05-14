@@ -15,6 +15,7 @@ internal class GetUserResponse
     public DateTime RegistrationDate { get; set; }
     public string? Note { get; set; }
     public string? GoogleUID { get; set; }
+    public bool IsAdmin { get; set; }
     public Tokens Tokens { get; set; }
     public Referral? Referral { get; set; }
     public string[]? ManagedChannels { get; set; }

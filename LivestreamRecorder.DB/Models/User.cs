@@ -31,6 +31,8 @@ public class User : Entity
 
     public string? MicrosoftUID { get; set; }
 
+    public bool IsAdmin { get; set; } = false;
+
     public Tokens Tokens { get; set; }
 
     public Referral? Referral { get; set; }

@@ -1,6 +1,5 @@
 using Azure.Storage.Blobs;
 using LivestreamRecorder.DB.Exceptions;
-using LivestreamRecorderBackend.DTO.Video;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,12 +7,9 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -52,7 +48,7 @@ public class Video
             if (string.IsNullOrEmpty(videoId) || string.IsNullOrEmpty(userId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            if (!transactionService.IsVideoDownloaded(videoId, userId))
+            if (!user.IsAdmin && !transactionService.IsVideoDownloaded(videoId, userId))
             {
                 Logger.Warning("The video {videoId} download by user {userId} failed because the download transaction was not completed. Please ensure that the transaction for downloading the video is successfully processed at /api/Transaction/DownloadVideo.", videoId, userId);
                 return new BadRequestObjectResult("The video download failed because the download transaction was not completed. Please ensure that the transaction for downloading the video is successfully processed at /api/Transaction/DownloadVideo.");
@@ -76,13 +72,13 @@ public class Video
         }
     }
 
-    [FunctionName(nameof(BlockVideo))]
-    [OpenApiOperation(operationId: nameof(BlockVideo), tags: new[] { nameof(Video) })]
-    [OpenApiRequestBody("application/json", typeof(BlockVideoRequest), Required = true)]
+    [FunctionName(nameof(RemoveVideo))]
+    [OpenApiOperation(operationId: nameof(RemoveVideo), tags: new[] { nameof(Video) })]
+    [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
-    public IActionResult BlockVideo(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req,
+    public IActionResult RemoveVideo(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Video")] HttpRequest req,
         [Blob("livestream-recorder")] BlobContainerClient blobContainerClient,
         ClaimsPrincipal principal)
     {
@@ -93,27 +89,22 @@ public class Video
 
             using var userService = new UserService();
             using var videoService = new VideoService();
-            using var transactionService = new TransactionService();
 
-            string requestBody = string.Empty;
-            using (StreamReader streamReader = new(req.Body))
+            IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
+            queryDictionary.TryGetValue("videoId", out var videoId);
+
+            if (null == videoId)
             {
-                requestBody = streamReader.ReadToEnd();
-            }
-            BlockVideoRequest data = JsonConvert.DeserializeObject<BlockVideoRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
-
-            var video = videoService.GetVideoById(data.id);
-
-            if ((user.ManagedChannels?.Contains(video.ChannelId)) != true)
-            {
-                Logger.Warning("User {userId} tried to patch video {videoId} but is not the admin of the channel {channelId}", user.id, video.id, video.ChannelId);
-                return new ForbidResult();
+                return new BadRequestObjectResult("Missing videoId query parameter.");
             }
 
-            videoService.BlockVideo(video, data, blobContainerClient);
-            transactionService.RefundDownloadVideoDT(video, data.Note);
+            var video = videoService.GetVideoById(videoId);
+            if (null == video)
+            {
+                return new BadRequestObjectResult("Video not found.");
+            }
 
+            videoService.RemoveVideo(video, blobContainerClient);
             return new OkResult();
         }
         catch (Exception e)
@@ -129,7 +120,7 @@ public class Video
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(BlockVideo), e);
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(RemoveVideo), e);
             return new InternalServerErrorResult();
         }
     }
