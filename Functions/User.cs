@@ -12,7 +12,6 @@ using Newtonsoft.Json.Serialization;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Claims;
@@ -134,104 +133,5 @@ public class User
             return new InternalServerErrorResult();
         }
     }
-
-    [FunctionName(nameof(AddUserReferralCode))]
-    [OpenApiOperation(operationId: nameof(AddUserReferralCode), tags: new[] { nameof(User) })]
-    [OpenApiRequestBody("application/json", typeof(AddUserReferralCodeRequest), Required = true)]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
-    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
-    public IActionResult AddUserReferralCode(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User/ReferralCode")] HttpRequest req, ClaimsPrincipal principal)
-    {
-        try
-        {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
-            if (null == user) return new UnauthorizedResult();
-
-            using var userService = new UserService();
-
-            string requestBody = string.Empty;
-            using (StreamReader streamReader = new(req.Body))
-            {
-                requestBody = streamReader.ReadToEnd();
-            }
-            AddUserReferralCodeRequest data = JsonConvert.DeserializeObject<AddUserReferralCodeRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
-
-            if (!string.IsNullOrEmpty(data.id))
-            {
-                if (data.id != user.id)
-                {
-                    Logger.Warning("User {userId} tried to add referralCode of user {userIdToModify} but is not the owner of the user", user.id, data.id);
-                    return new ForbidResult();
-                }
-            }
-            if (string.IsNullOrEmpty(data.id) || string.IsNullOrEmpty(data.ReferralCode))
-            {
-                return new BadRequestObjectResult("Missing parameters.");
-            }
-
-            user = userService.AddUserReferralCode(data, user);
-            var result = new GetUserResponse();
-            if (null != user) result.InjectFrom(user);
-            return new JsonResult(result, new JsonSerializerSettings()
-            {
-                ContractResolver = new DefaultContractResolver()
-            });
-        }
-        catch (Exception e)
-        {
-            if (e is InvalidOperationException)
-            {
-                Logger.Warning(e, e.Message);
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new BadRequestObjectResult(e.Message);
-            }
-
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddUserReferralCode), e);
-            return new InternalServerErrorResult();
-        }
-    }
-
-    [FunctionName(nameof(GetSupportedChannels))]
-    [OpenApiOperation(operationId: nameof(GetSupportedChannels), tags: new[] { nameof(User) })]
-    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "Search with UserId")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "application/json", typeof(List<string>), Description = "Channel id array")]
-    public IActionResult GetSupportedChannels(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User/SupportedChannels")] HttpRequest req, ClaimsPrincipal principal)
-    {
-        try
-        {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
-            if (null == user) return new UnauthorizedResult();
-
-            using var transactionService = new TransactionService();
-
-            IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
-            queryDictionary.TryGetValue("userId", out var userId);
-
-            if (!string.IsNullOrEmpty(userId))
-            {
-                if (userId != user.id)
-                {
-                    Logger.Warning("User {userId} tried to get transactions of user {userIdToGet} but is not the owner of the user", user.id, userId);
-                    return new ForbidResult();
-                }
-            }
-            if (string.IsNullOrEmpty(userId))
-            {
-                return new BadRequestObjectResult("Missing parameters.");
-            }
-
-            var channelIds = transactionService.GetSupportedChannelsByUser(userId);
-            return new OkObjectResult(channelIds);
-        }
-        catch (Exception e)
-        {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSupportedChannels), e);
-            return new InternalServerErrorResult();
-        }
-    }
-
 }
 

@@ -1,21 +1,12 @@
 ﻿using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
-using LivestreamRecorderBackend.Helper;
-using LivestreamRecorderBackend.Models;
-using Serilog;
 using System;
-using System.Configuration;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using YoutubeDLSharp.Options;
 
 namespace LivestreamRecorderBackend.Services;
 
 internal class ChannelService : IDisposable
 {
-    private static ILogger Logger => Helper.Log.Logger;
     private bool _disposedValue;
     private readonly IUnitOfWork _publicUnitOfWork;
     private readonly ChannelRepository _channelRepository;

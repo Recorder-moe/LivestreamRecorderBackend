@@ -37,7 +37,6 @@ public class Video
             if (null == user) return new UnauthorizedResult();
 
             using var videoService = new VideoService();
-            using var transactionService = new TransactionService();
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("userId", out var userId);
@@ -48,10 +47,10 @@ public class Video
             if (string.IsNullOrEmpty(videoId) || string.IsNullOrEmpty(userId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            if (!user.IsAdmin && !transactionService.IsVideoDownloaded(videoId, userId))
+            if (!user.IsAdmin)
             {
-                Logger.Warning("The video {videoId} download by user {userId} failed because the download transaction was not completed. Please ensure that the transaction for downloading the video is successfully processed at /api/Transaction/DownloadVideo.", videoId, userId);
-                return new BadRequestObjectResult("The video download failed because the download transaction was not completed. Please ensure that the transaction for downloading the video is successfully processed at /api/Transaction/DownloadVideo.");
+                Logger.Warning("User {userId} is trying to download but is not allowed.", videoId, userId);
+                return new BadRequestObjectResult("User is trying to download but is not allowed.");
             }
 
             string? sASToken = await videoService.GetSASTokenAsync(videoId, blobContainerClient);
