@@ -2,8 +2,6 @@
 using LivestreamRecorder.DB.Enum;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
-using LivestreamRecorderBackend.DTO.Video;
-using Omu.ValueInjecter;
 using System;
 using System.Threading.Tasks;
 
@@ -50,9 +48,9 @@ internal class VideoService : IDisposable
                : null;
     }
 
-    internal void BlockVideo(Video video, BlockVideoRequest data, Azure.Storage.Blobs.BlobContainerClient blobContainerClient)
+    internal void RemoveVideo(Video video, Azure.Storage.Blobs.BlobContainerClient blobContainerClient)
     {
-        video.InjectFrom(data);
+        video.Status = VideoStatus.Deleted;
         _videoRepository.Update(video);
         _publicUnitOfWork.Commit();
         var blobClient = blobContainerClient.GetBlobClient($@"/videos/{video.Filename}");
