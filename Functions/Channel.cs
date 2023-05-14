@@ -1,4 +1,6 @@
+using Azure.Storage.Blobs;
 using LivestreamRecorderBackend.DTO;
+using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,11 +29,12 @@ public class Channel
     [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> AddChannelAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel")] HttpRequest req, ClaimsPrincipal principal)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel")] HttpRequest req,
+        ClaimsPrincipal principal)
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
 
             using var channelService = new ChannelService();
@@ -46,13 +49,13 @@ public class Channel
 
             if (user.id != data.UserId) return new ForbidResult();
 
-            // TODO Update channel images
             var channelId = "";
             var url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(new[] { '/' });
+            bool newChannel = false;
             // Youtube
             if (data.Url.Contains("youtube"))
             {
-                var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync(data.Url);
+                var info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
                 if (null == info)
                 {
                     Logger.Warning("Failed to get channel info for {url}", data.Url);
@@ -60,19 +63,33 @@ public class Channel
                 }
 
                 channelId = info.ChannelId;
+                LivestreamRecorder.DB.Models.Channel channel;
+                if (channelService.ChannelExists(channelId))
+                {
+                    channel = channelService.GetChannelById(channelId);
+                }
+                else
+                {
+                    channel = channelService.AddChannel(channelId, "Youtube");
+                    newChannel = true;
+                }
+
+                await channelService.UpdateChannelData(channel);
             }
             // Twitch, Twitcasting
             else
             {
                 channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
+                if(!channelService.ChannelExists(channelId))
+                {
+                    channelService.AddChannel(channelId, url.Contains("twitch") ? "Twitch" : "Twitcasting");
+                    newChannel = true;
+                }
             }
 
-            if (channelService.ChannelExists(channelId))
-            {
-                return new OkObjectResult(channelId);
-            }
-
-            return new OkObjectResult("OK");
+            return newChannel 
+                ? new OkObjectResult("OK") 
+                : new OkObjectResult(channelId);
         }
         catch (Exception e)
         {

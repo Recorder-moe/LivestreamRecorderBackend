@@ -13,11 +13,14 @@ internal class VideoService : IDisposable
     private bool _disposedValue;
     private readonly IUnitOfWork _publicUnitOfWork;
     private readonly VideoRepository _videoRepository;
+    private readonly ABSservice _aBSService;
 
     public VideoService()
     {
         (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
         _videoRepository = new VideoRepository((UnitOfWork_Public)_publicUnitOfWork);
+
+        _aBSService = new ABSservice();
     }
 
     internal bool IsVideoArchived(string videoId)
@@ -37,10 +40,10 @@ internal class VideoService : IDisposable
     /// <param name="videoId"></param>
     /// <param name="blobContainerClient"></param>
     /// <returns>SAS uri</returns>
-    internal async Task<string?> GetSASTokenAsync(string videoId, Azure.Storage.Blobs.BlobContainerClient blobContainerClient)
+    internal async Task<string?> GetSASTokenAsync(string videoId)
     {
         var video = GetVideoById(videoId);
-        var blobClient = blobContainerClient.GetBlobClient($@"/videos/{video.Filename}");
+        var blobClient = _aBSService.GetVideoBlob(video);
         return null != blobClient
                    && await blobClient.ExistsAsync()
                    && blobClient.CanGenerateSasUri
@@ -48,12 +51,12 @@ internal class VideoService : IDisposable
                : null;
     }
 
-    internal void RemoveVideo(Video video, Azure.Storage.Blobs.BlobContainerClient blobContainerClient)
+    internal void RemoveVideo(Video video)
     {
         video.Status = VideoStatus.Deleted;
         _videoRepository.Update(video);
         _publicUnitOfWork.Commit();
-        var blobClient = blobContainerClient.GetBlobClient($@"/videos/{video.Filename}");
+        var blobClient = _aBSService.GetVideoBlob(video);
         blobClient.DeleteIfExists();
     }
 

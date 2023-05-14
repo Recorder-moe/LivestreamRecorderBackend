@@ -28,7 +28,6 @@ public class Video
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The SAS Token.")]
     public async Task<IActionResult> GetSASToken(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/SASToken")] HttpRequest req,
-            [Blob("livestream-recorder")] BlobContainerClient blobContainerClient,
             ClaimsPrincipal principal)
     {
         try
@@ -53,7 +52,7 @@ public class Video
                 return new BadRequestObjectResult("User is trying to download but is not allowed.");
             }
 
-            string? sASToken = await videoService.GetSASTokenAsync(videoId, blobContainerClient);
+            string? sASToken = await videoService.GetSASTokenAsync(videoId);
             if (string.IsNullOrEmpty(sASToken))
             {
                 Logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, userId);
@@ -78,7 +77,6 @@ public class Video
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
     public IActionResult RemoveVideo(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Video")] HttpRequest req,
-        [Blob("livestream-recorder")] BlobContainerClient blobContainerClient,
         ClaimsPrincipal principal)
     {
         try
@@ -103,7 +101,7 @@ public class Video
                 return new BadRequestObjectResult("Video not found.");
             }
 
-            videoService.RemoveVideo(video, blobContainerClient);
+            videoService.RemoveVideo(video);
             return new OkResult();
         }
         catch (Exception e)
