@@ -1,5 +1,4 @@
-﻿using Azure.Identity;
-using Azure.Storage.Blobs;
+﻿using Azure.Storage.Blobs;
 using LivestreamRecorder.DB.Models;
 using System;
 
@@ -12,18 +11,18 @@ public class ABSservice
 
     public ABSservice()
     {
-        string? blobUri = Environment.GetEnvironmentVariable("Blob_Uri");
+        string? connectionString = Environment.GetEnvironmentVariable("Blob_ConnectionString");
         string? blobContainerName = Environment.GetEnvironmentVariable("Blob_ContainerName");
         string? blobContainerNamePublic = Environment.GetEnvironmentVariable("Blob_ContainerNamePublic");
 
-        if (string.IsNullOrWhiteSpace(blobUri)
+        if (string.IsNullOrWhiteSpace(connectionString)
             || string.IsNullOrWhiteSpace(blobContainerName)
             || string.IsNullOrWhiteSpace(blobContainerNamePublic))
         {
             throw new ArgumentNullException("blob settings");
         }
 
-        var blobServiceClient = new BlobServiceClient(new Uri(blobUri), new DefaultAzureCredential());
+        var blobServiceClient = new BlobServiceClient(connectionString);
         _blobContainerClient = blobServiceClient.GetBlobContainerClient(blobContainerName);
         _blobContainerClient_public = blobServiceClient.GetBlobContainerClient(blobContainerNamePublic);
     }
