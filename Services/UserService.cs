@@ -77,9 +77,9 @@ public class UserService : IDisposable
         string? userPicture = userEmail?.ToGravatar(200);
 
         // First user
-#pragma warning disable CA1827 // 不要在可使用 Any() 時使用 Count() 或 LongCount()
-        if (_userRepository.All().Count() == 0)
-#pragma warning restore CA1827 // 不要在可使用 Any() 時使用 Count() 或 LongCount()
+        int UserCount = _userRepository.All().Count();
+        if (UserCount == 0
+            || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true)
         {
             user = new User()
             {
@@ -99,7 +99,8 @@ public class UserService : IDisposable
                     Clicked = 0,
                     Referees = 0,
                     Earned = 0
-                }
+                },
+                IsAdmin = UserCount == 0
             };
 
             string? uid = GetUID(claimsPrincipal);
@@ -127,7 +128,7 @@ public class UserService : IDisposable
         }
         else if (null == user)
         {
-            throw new EntityNotFoundException($"Cannot create new user {claimsPrincipal.Identity?.Name}.");
+            throw new EntityNotFoundException($"Cannot create new user {claimsPrincipal.Identity?.Name}. Registration for this site is not permitted.");
         }
 
         if (user.Picture != userPicture)

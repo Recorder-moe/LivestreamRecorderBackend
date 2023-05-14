@@ -52,7 +52,7 @@ public class Video
             if (string.IsNullOrEmpty(videoId) || string.IsNullOrEmpty(userId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            if (!transactionService.IsVideoDownloaded(videoId, userId))
+            if (!user.IsAdmin && !transactionService.IsVideoDownloaded(videoId, userId))
             {
                 Logger.Warning("The video {videoId} download by user {userId} failed because the download transaction was not completed. Please ensure that the transaction for downloading the video is successfully processed at /api/Transaction/DownloadVideo.", videoId, userId);
                 return new BadRequestObjectResult("The video download failed because the download transaction was not completed. Please ensure that the transaction for downloading the video is successfully processed at /api/Transaction/DownloadVideo.");
