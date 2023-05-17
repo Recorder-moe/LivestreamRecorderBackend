@@ -1,12 +1,14 @@
 ﻿using Serilog;
+using System.Configuration;
 using System.IO;
 using System.Threading.Tasks;
 using Xabe.FFmpeg;
 
-namespace LivestreamRecorderService.Helper;
+namespace LivestreamRecorderBackend.Helper;
 
 public static class ImageHelper
 {
+    private static ILogger Logger => Helper.Log.Logger;
     public static async Task<string> ConvertToAvifAsync(string path)
     {
         string _ffmpegPath = "./ffmpeg.exe";
@@ -15,8 +17,13 @@ public static class ImageHelper
         {
             _ffmpegPath = Path.GetFullPath(_ffmpegPath);
         }
+        else
+        {
+            (string? _, string? FFmpegPath) = YoutubeDL.WhereIs();
+            _ffmpegPath = FFmpegPath ?? throw new ConfigurationErrorsException("FFmpeg is missing.");
+        }
 
-        FFmpeg.SetExecutablesPath(_ffmpegPath);
+        FFmpeg.SetExecutablesPath(Path.GetDirectoryName(_ffmpegPath), "ffmpeg.exe", "ffprobe.exe");
 
         IMediaInfo mediaInfo = await FFmpeg.GetMediaInfo(path);
         var outputPath = Path.ChangeExtension(path, ".avif");
@@ -27,10 +34,10 @@ public static class ImageHelper
                                    .SetOutput(outputPath)
                                    .SetOverwriteOutput(true);
         conversion.OnProgress += (_, e)
-            => Log.Verbose("Progress: {progress}%", e.Percent);
+            => Logger.Verbose("Progress: {progress}%", e.Percent);
         conversion.OnDataReceived += (_, e)
-            => Log.Verbose(e.Data ?? "");
-        Log.Debug("FFmpeg arguments: {arguments}", conversion.Build());
+            => Logger.Verbose(e.Data ?? "");
+        Logger.Debug("FFmpeg arguments: {arguments}", conversion.Build());
 
         IConversionResult convRes = await conversion.Start();
 

@@ -2,7 +2,7 @@
 using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
-using LivestreamRecorderService.Helper;
+using LivestreamRecorderBackend.Helper;
 using MimeMapping;
 using Serilog;
 using System;
@@ -35,38 +35,57 @@ internal class ChannelService : IDisposable
 
     internal bool ChannelExists(string id) => _channelRepository.Exists(id);
 
-    internal Channel AddChannel(string id, string source)
+    internal Channel AddChannel(string id, string source, string channelName)
     {
         var channel = new Channel
         {
             id = id,
-            Monitoring = true,
+            ChannelName = channelName,
+            Monitoring = false,
             Source = source,
+            Hide = false
         };
         _channelRepository.Add(channel);
         _publicUnitOfWork.Commit();
         return channel;
     }
 
-    internal async Task UpdateChannelData(Channel channel, CancellationToken cancellation = default)
+    internal async Task UpdateChannelData(Channel channel, string? name = null, string? avatarUrl = null, string? bannerUrl = null, CancellationToken cancellation = default)
     {
+        var channelName = channel.ChannelName;
         var avatarBlobUrl = channel.Avatar;
         var bannerBlobUrl = channel.Banner;
-        var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync(channel.id, cancellation);
-        if (null == info)
+
+        switch (channel.Source)
         {
-            Logger.Warning("Failed to get channel info for {channelId}", channel.id);
-            return;
+            case "Youtube":
+                var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
+                if (null == info)
+                {
+                    Logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                    return;
+                }
+
+                channelName = info.Uploader;
+
+                var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
+                avatarUrl = thumbnails.FirstOrDefault()?.Url;
+                bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
+                break;
+            default:
+                break;
         }
 
-        var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
-        var avatarUrl = thumbnails.FirstOrDefault()?.Url;
+        if (!string.IsNullOrEmpty(name))
+        {
+            channelName = name;
+        }
+
         if (!string.IsNullOrEmpty(avatarUrl))
         {
             avatarBlobUrl = await DownloadImageAndUploadToBlobStorage(avatarUrl, $"avatar/{channel.id}", cancellation);
         }
 
-        var bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
         if (!string.IsNullOrEmpty(bannerUrl))
         {
             bannerBlobUrl = (await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation));
@@ -74,7 +93,7 @@ internal class ChannelService : IDisposable
 
         _publicUnitOfWork.Context.Entry(channel).Reload();
         channel = _channelRepository.LoadRelatedData(channel);
-        channel.ChannelName = info.Uploader;
+        channel.ChannelName = channelName;
         channel.Avatar = avatarBlobUrl?.Replace("avatar/", "");
         channel.Banner = bannerBlobUrl?.Replace("banner/", "");
         _channelRepository.Update(channel);
@@ -152,6 +171,22 @@ internal class ChannelService : IDisposable
         File.Delete(Path.ChangeExtension(tempPath, ".avif"));
 
         return pathInStorage;
+    }
+
+    public void EnableMonitoring(string channelId)
+    {
+        var channel = _channelRepository.GetById(channelId);
+        channel.Monitoring = true;
+        _channelRepository.Update(channel);
+        _publicUnitOfWork.Commit();
+    }
+
+    public void DisableMonitoring(string channelId)
+    {
+        var channel = _channelRepository.GetById(channelId);
+        channel.Monitoring = false;
+        _channelRepository.Update(channel);
+        _publicUnitOfWork.Commit();
     }
 
     #region Dispose
