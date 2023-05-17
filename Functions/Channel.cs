@@ -158,6 +158,11 @@ public class Channel
         // Twitch, Twitcasting
         else
         {
+            if(null != data.Avatar)
+            {
+                data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
+                                         .Replace("70x70", "300x300");  // Twitch
+            }
             await channelService.UpdateChannelData(channel, data.Name, data.Avatar, data.Banner);
         }
 
