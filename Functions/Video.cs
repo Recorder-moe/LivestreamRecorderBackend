@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorderBackend.DTO;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,11 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -118,6 +121,63 @@ public class Video
             }
 
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(RemoveVideo), e);
+            return new InternalServerErrorResult();
+        }
+    }
+
+    [FunctionName(nameof(UpdateVideo))]
+    [OpenApiOperation(operationId: nameof(UpdateVideo), tags: new[] { nameof(Video) })]
+    [OpenApiRequestBody("application/json", typeof(UpdateVideoRequest), Required = true)]
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
+    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Video not found.")]
+    public IActionResult UpdateVideo(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req,
+        ClaimsPrincipal principal)
+    {
+        try
+        {
+            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user) return new UnauthorizedResult();
+
+            using var userService = new UserService();
+            using var videoService = new VideoService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = streamReader.ReadToEnd();
+            }
+            UpdateVideoRequest data = JsonConvert.DeserializeObject<UpdateVideoRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            if (string.IsNullOrEmpty(data.id))
+            {
+                return new BadRequestObjectResult("Missing videoId query parameter.");
+            }
+
+            var video = videoService.GetVideoById(data.id);
+            if (null == data)
+            {
+                return new BadRequestObjectResult("Video not found.");
+            }
+
+            videoService.UpdateVideo(video, data);
+            return new OkResult();
+        }
+        catch (Exception e)
+        {
+            if (e is InvalidOperationException)
+            {
+                Logger.Warning(e, e.Message);
+                Helper.Log.LogClaimsPrincipal(principal);
+                return new BadRequestObjectResult(e.Message);
+            }
+            else if (e is EntityNotFoundException)
+            {
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateVideo), e);
             return new InternalServerErrorResult();
         }
     }
