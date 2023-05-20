@@ -2,6 +2,7 @@
 using LivestreamRecorder.DB.Enum;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
+using LivestreamRecorderBackend.DTO;
 using System;
 using System.Threading.Tasks;
 
@@ -58,6 +59,16 @@ internal class VideoService : IDisposable
         _publicUnitOfWork.Commit();
         var blobClient = _aBSService.GetVideoBlob(video);
         blobClient.DeleteIfExists();
+    }
+
+    internal void UpdateVideo(Video video, UpdateVideoRequest updateVideoRequest)
+    {
+        var v = _videoRepository.GetById(video.id);
+        if (null != updateVideoRequest.Status) v.Status = updateVideoRequest.Status.Value;
+        if (null != updateVideoRequest.SourceStatus) v.SourceStatus = updateVideoRequest.SourceStatus.Value;
+        if (null != updateVideoRequest.Note) v.Note = updateVideoRequest.Note;
+        _videoRepository.Update(v);
+        _publicUnitOfWork.Commit();
     }
 
     #region Dispose
