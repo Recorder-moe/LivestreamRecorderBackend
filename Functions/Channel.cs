@@ -1,4 +1,5 @@
-using LivestreamRecorderBackend.DTO;
+using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorderBackend.DTO.Channel;
 using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
@@ -106,7 +107,7 @@ public class Channel
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> UpdateChannel_Http(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "UpdateChannel")] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")] HttpRequest req,
             ClaimsPrincipal principal)
     {
         try
@@ -158,7 +159,7 @@ public class Channel
         // Twitch, Twitcasting
         else
         {
-            if(null != data.Avatar)
+            if (null != data.Avatar)
             {
                 data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
                                          .Replace("70x70", "300x300");  // Twitch
@@ -168,6 +169,49 @@ public class Channel
 
         channelService.EnableMonitoring(data.ChannelId);
         Logger.Information("Finish updating channel {channelId}", data.ChannelId);
+    }
+
+    [FunctionName(nameof(EnableChannelAsync))]
+    [OpenApiOperation(operationId: nameof(EnableChannelAsync), tags: new[] { nameof(Channel) })]
+    [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
+    [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
+    public async Task<IActionResult> EnableChannelAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/EnableChannel")] HttpRequest req,
+        ClaimsPrincipal principal)
+    {
+        try
+        {
+            var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            if (null == user || !user.IsAdmin) return new UnauthorizedResult();
+
+            using var channelService = new ChannelService();
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = await streamReader.ReadToEndAsync();
+            }
+            var data = JsonConvert.DeserializeObject<EnableChannelRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            if (data.Monitoring)
+                channelService.EnableMonitoring(data.id);
+            else
+                channelService.DisableMonitoring(data.id);
+
+            return new OkResult();
+        }
+        catch (Exception e)
+        {
+            if (e is EntityNotFoundException)
+            {
+                Helper.Log.LogClaimsPrincipal(principal);
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(EnableChannelAsync), e);
+            return new InternalServerErrorResult();
+        }
     }
 }
 
