@@ -38,6 +38,7 @@ public class Channel
         {
             var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new ForbidResult();
 
             using var channelService = new ChannelService();
 
@@ -48,8 +49,6 @@ public class Channel
             }
             var data = JsonConvert.DeserializeObject<AddChannelRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
-
-            if (user.id != data.UserId) return new ForbidResult();
 
             LivestreamRecorder.DB.Models.Channel channel;
             var channelId = "";
@@ -86,9 +85,8 @@ public class Channel
                 orchestratorFunctionName: nameof(UpdateChannel_Durable),
                 input: new UpdateChannelRequest()
                 {
-                    UserId = data.UserId,
-                    ChannelId = channelId,
-                    Name = data.Name,
+                    id = channelId,
+                    ChannelName = data.Name ?? "",
                     Avatar = data.Avatar,
                     Banner = data.Banner,
                 });
@@ -114,6 +112,7 @@ public class Channel
         {
             var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new ForbidResult();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -122,8 +121,6 @@ public class Channel
             }
             var data = JsonConvert.DeserializeObject<UpdateChannelRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
-
-            if (user.id != data.UserId) return new ForbidResult();
 
             await UpdateChannel_Inner(data);
 
@@ -147,9 +144,9 @@ public class Channel
 
     private static async Task UpdateChannel_Inner(UpdateChannelRequest data)
     {
-        Logger.Information("Start updating channel {channelId}", data.ChannelId);
+        Logger.Information("Start updating channel {channelId}", data.id);
         using var channelService = new ChannelService();
-        var channel = channelService.GetChannelById(data.ChannelId);
+        var channel = channelService.GetChannelById(data.id);
 
         // Youtube
         if (channel.Source == "Youtube")
@@ -164,11 +161,11 @@ public class Channel
                 data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
                                          .Replace("70x70", "300x300");  // Twitch
             }
-            await channelService.UpdateChannelData(channel, data.Name, data.Avatar, data.Banner);
+            await channelService.UpdateChannelData(channel, data.ChannelName, data.Avatar, data.Banner);
         }
 
-        channelService.EnableMonitoring(data.ChannelId);
-        Logger.Information("Finish updating channel {channelId}", data.ChannelId);
+        channelService.EnableMonitoring(data.id);
+        Logger.Information("Finish updating channel {channelId}", data.id);
     }
 
     [FunctionName(nameof(EnableChannelAsync))]
@@ -182,7 +179,8 @@ public class Channel
         try
         {
             var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
-            if (null == user || !user.IsAdmin) return new UnauthorizedResult();
+            if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new ForbidResult();
 
             using var channelService = new ChannelService();
 

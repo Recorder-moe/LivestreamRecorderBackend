@@ -26,7 +26,6 @@ public class Video
 
     [FunctionName(nameof(GetSASToken))]
     [OpenApiOperation(operationId: nameof(GetSASToken), tags: new[] { nameof(Video) })]
-    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "UserId")]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The SAS Token.")]
     public async Task<IActionResult> GetSASToken(
@@ -37,32 +36,24 @@ public class Video
         {
             var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new ForbidResult();
 
             using var videoService = new VideoService();
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
-            queryDictionary.TryGetValue("userId", out var userId);
             queryDictionary.TryGetValue("videoId", out var videoId);
 
-            if (user.id != userId) return new ForbidResult();
-
-            if (string.IsNullOrEmpty(videoId) || string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(videoId))
                 return new BadRequestObjectResult("Missing parameters.");
-
-            if (!user.IsAdmin)
-            {
-                Logger.Warning("User {userId} is trying to download but is not allowed.", videoId, userId);
-                return new BadRequestObjectResult("User is trying to download but is not allowed.");
-            }
 
             string? sASToken = await videoService.GetSASTokenAsync(videoId);
             if (string.IsNullOrEmpty(sASToken))
             {
-                Logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, userId);
+                Logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, user.id);
                 return new BadRequestObjectResult("Failed to generate SASToken.");
             }
 
-            Logger.Verbose("User {userId} has generated a SAS token for video {videoId}", userId, videoId);
+            Logger.Verbose("User {userId} has generated a SAS token for video {videoId}", user.id, videoId);
 
             return new OkObjectResult(sASToken);
         }
@@ -86,6 +77,7 @@ public class Video
         {
             var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new ForbidResult();
 
             using var userService = new UserService();
             using var videoService = new VideoService();
@@ -138,6 +130,7 @@ public class Video
         {
             var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new ForbidResult();
 
             using var userService = new UserService();
             using var videoService = new VideoService();

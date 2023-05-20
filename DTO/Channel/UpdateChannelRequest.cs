@@ -3,9 +3,10 @@
 
 public class UpdateChannelRequest
 {
-    public string UserId { get; set; }
-    public string ChannelId { get; set; }
-    public string? Name { get; set; }
+#pragma warning disable IDE1006 // 命名樣式
+    public string id { get; set; }
+#pragma warning restore IDE1006 // 命名樣式
+    public string ChannelName { get; set; }
     public string? Avatar { get; set; }
     public string? Banner { get; set; }
 }
