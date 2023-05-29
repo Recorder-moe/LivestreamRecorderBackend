@@ -2,7 +2,8 @@
 using LivestreamRecorder.DB.Enum;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
-using LivestreamRecorderBackend.DTO;
+using LivestreamRecorderBackend.DTO.Video;
+using Serilog;
 using System;
 using System.Threading.Tasks;
 
@@ -10,7 +11,7 @@ namespace LivestreamRecorderBackend.Services;
 
 internal class VideoService : IDisposable
 {
-    //private static ILogger Logger => Helper.Log.Logger;
+    private static ILogger Logger => Helper.Log.Logger;
     private bool _disposedValue;
     private readonly IUnitOfWork _publicUnitOfWork;
     private readonly VideoRepository _videoRepository;
@@ -35,6 +36,79 @@ internal class VideoService : IDisposable
 
     internal Video GetVideoById(string id) => _videoRepository.GetById(id);
 
+    internal async Task<string> AddVideoAsync(string url)
+    {
+        string? Platform;
+        if (url.Contains("youtube"))
+        {
+            Platform = "Youtube";
+        }
+        else if (url.Contains("twitch"))
+        {
+            Platform = "Twitch";
+        }
+        else if (url.Contains("twitcasting"))
+        {
+            Platform = "Twitcasting";
+        }
+        else
+        {
+            Logger.Warning("Unsupported platform for {url}", url);
+            throw new InvalidOperationException($"Unsupported platform for {url}.");
+        }
+
+        var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync(url);
+        if (null == info || string.IsNullOrEmpty(info.Id))
+        {
+            Logger.Warning("Failed to get video info for {url}", url);
+            throw new InvalidOperationException($"Failed to get video info for {url}.");
+        }
+
+        var id = info.Id;
+        if (_videoRepository.Exists(id))
+        {
+            Logger.Warning("Video {videoId} already exists", id);
+            throw new InvalidOperationException($"Video {id} already exists.");
+        }
+
+        _videoRepository.Add(new()
+        {
+            id = id,
+            Source = Platform,
+            Status = VideoStatus.Pending,
+            SourceStatus = VideoStatus.Exist,
+            Title = info.Title,
+            Description = info.Description,
+            ChannelId = info.ChannelId ?? info.UploaderId,
+            Timestamps = new Timestamps()
+            {
+                PublishedAt = DateTime.UtcNow,
+            },
+        });
+        _publicUnitOfWork.Commit();
+
+        return id;
+    }
+
+    internal void UpdateVideo(Video video, UpdateVideoRequest updateVideoRequest)
+    {
+        var v = _videoRepository.GetById(video.id);
+        if (null != updateVideoRequest.Status) v.Status = updateVideoRequest.Status.Value;
+        if (null != updateVideoRequest.SourceStatus) v.SourceStatus = updateVideoRequest.SourceStatus.Value;
+        if (null != updateVideoRequest.Note) v.Note = updateVideoRequest.Note;
+        _videoRepository.Update(v);
+        _publicUnitOfWork.Commit();
+    }
+
+    internal void RemoveVideo(Video video)
+    {
+        video.Status = VideoStatus.Deleted;
+        _videoRepository.Update(video);
+        _publicUnitOfWork.Commit();
+        var blobClient = _aBSService.GetVideoBlob(video);
+        blobClient.DeleteIfExists();
+    }
+
     /// <summary>
     /// Get SAS token for video.
     /// </summary>
@@ -50,25 +124,6 @@ internal class VideoService : IDisposable
                    && blobClient.CanGenerateSasUri
                ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12)).Query
                : null;
-    }
-
-    internal void RemoveVideo(Video video)
-    {
-        video.Status = VideoStatus.Deleted;
-        _videoRepository.Update(video);
-        _publicUnitOfWork.Commit();
-        var blobClient = _aBSService.GetVideoBlob(video);
-        blobClient.DeleteIfExists();
-    }
-
-    internal void UpdateVideo(Video video, UpdateVideoRequest updateVideoRequest)
-    {
-        var v = _videoRepository.GetById(video.id);
-        if (null != updateVideoRequest.Status) v.Status = updateVideoRequest.Status.Value;
-        if (null != updateVideoRequest.SourceStatus) v.SourceStatus = updateVideoRequest.SourceStatus.Value;
-        if (null != updateVideoRequest.Note) v.Note = updateVideoRequest.Note;
-        _videoRepository.Update(v);
-        _publicUnitOfWork.Commit();
     }
 
     #region Dispose
