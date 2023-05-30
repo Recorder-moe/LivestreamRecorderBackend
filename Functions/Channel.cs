@@ -75,9 +75,31 @@ public class Channel
             {
                 channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
                 channelName = data.Name ?? "";
+
+                string Platform;
+                if (url.Contains("twitch"))
+                {
+                    Platform = "Twitch";
+                }
+                else if (url.Contains("twitcasting"))
+                {
+                    Platform = "Twitcasting";
+                }
+                else if (url.Contains("fc2"))
+                {
+                    Platform = "FC2";
+                }
+                else
+                {
+                    Logger.Warning("Unsupported platform for {url}", url);
+                    throw new InvalidOperationException($"Unsupported platform for {url}.");
+                }
+
                 channel = channelService.ChannelExists(channelId)
                     ? channelService.GetChannelById(channelId)
-                    : channelService.AddChannel(channelId, url.Contains("twitch") ? "Twitch" : "Twitcasting", channelName);
+                    : channelService.AddChannel(id: channelId,
+                                                source: Platform,
+                                                channelName: channelName);
             }
             Logger.Information("Finish adding channel {channelId}", channelId);
 
@@ -95,6 +117,12 @@ public class Channel
         }
         catch (Exception e)
         {
+            if (e is InvalidOperationException)
+            {
+                Helper.Log.LogClaimsPrincipal(principal);
+                return new BadRequestObjectResult(e.Message);
+            }
+
             Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
             return new InternalServerErrorResult();
         }
@@ -153,7 +181,7 @@ public class Channel
         {
             await channelService.UpdateChannelData(channel);
         }
-        // Twitch, Twitcasting
+        // Twitch, Twitcasting, FC2
         else
         {
             if (null != data.Avatar)

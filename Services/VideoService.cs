@@ -51,6 +51,10 @@ internal class VideoService : IDisposable
         {
             Platform = "Twitcasting";
         }
+        else if (url.Contains("fc2"))
+        {
+            Platform = "FC2";
+        }
         else
         {
             Logger.Warning("Unsupported platform for {url}", url);
@@ -79,7 +83,7 @@ internal class VideoService : IDisposable
             SourceStatus = VideoStatus.Exist,
             Title = info.Title,
             Description = info.Description,
-            ChannelId = info.ChannelId ?? info.UploaderId,
+            ChannelId = info.ChannelId ?? info.UploaderId ?? Platform,
             Timestamps = new Timestamps()
             {
                 PublishedAt = DateTime.UtcNow,
