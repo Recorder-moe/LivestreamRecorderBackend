@@ -45,6 +45,13 @@ internal class ChannelService : IDisposable
             Source = source,
             Hide = false
         };
+
+        // Hide FC2 channels by default
+        if(source == "FC2")
+        {
+            channel.Hide = true;
+        }
+
         _channelRepository.Add(channel);
         _publicUnitOfWork.Commit();
         return channel;
@@ -81,12 +88,12 @@ internal class ChannelService : IDisposable
             channelName = name;
         }
 
-        if (!string.IsNullOrEmpty(avatarUrl))
+        if (!string.IsNullOrEmpty(avatarUrl) && avatarUrl.StartsWith("http"))
         {
             avatarBlobUrl = await DownloadImageAndUploadToBlobStorage(avatarUrl, $"avatar/{channel.id}", cancellation);
         }
 
-        if (!string.IsNullOrEmpty(bannerUrl))
+        if (!string.IsNullOrEmpty(bannerUrl) && bannerUrl.StartsWith("http"))
         {
             bannerBlobUrl = (await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation));
         }
