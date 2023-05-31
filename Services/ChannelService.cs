@@ -57,30 +57,48 @@ internal class ChannelService : IDisposable
         return channel;
     }
 
-    internal async Task UpdateChannelData(Channel channel, string? name = null, string? avatarUrl = null, string? bannerUrl = null, CancellationToken cancellation = default)
+    internal async Task UpdateChannelData(Channel channel, bool autoUpdateInfo, string? name = null, string? avatarUrl = null, string? bannerUrl = null, CancellationToken cancellation = default)
     {
         var channelName = channel.ChannelName;
-        var avatarBlobUrl = channel.Avatar;
-        var bannerBlobUrl = channel.Banner;
+        var avatarBlobUri = channel.Avatar;
+        var bannerBlobUri = channel.Banner;
 
-        switch (channel.Source)
+        if (autoUpdateInfo)
         {
-            case "Youtube":
-                var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
-                if (null == info)
-                {
-                    Logger.Warning("Failed to get channel info for {channelId}", channel.id);
-                    return;
-                }
+            switch (channel.Source)
+            {
+                case "Youtube":
+                    {
+                        var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
+                        if (null == info)
+                        {
+                            Logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                            return;
+                        }
 
-                channelName = info.Uploader;
+                        name = info.Uploader;
 
-                var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
-                avatarUrl = thumbnails.FirstOrDefault()?.Url;
-                bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
-                break;
-            default:
-                break;
+                        var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
+                        avatarUrl = thumbnails.FirstOrDefault()?.Url;
+                        bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
+                    }
+                    break;
+                case "FC2":
+                    {
+                        var info = await Helper.FC2Helper.GetFC2InfoDataAsync(channel.id, cancellation);
+                        if (null == info)
+                        {
+                            Logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                            return;
+                        }
+
+                        name = info.Data.ProfileData.Name;
+                        avatarUrl = info.Data.ProfileData.Image;
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
 
         if (!string.IsNullOrEmpty(name))
@@ -90,19 +108,19 @@ internal class ChannelService : IDisposable
 
         if (!string.IsNullOrEmpty(avatarUrl) && avatarUrl.StartsWith("http"))
         {
-            avatarBlobUrl = await DownloadImageAndUploadToBlobStorage(avatarUrl, $"avatar/{channel.id}", cancellation);
+            avatarBlobUri = await DownloadImageAndUploadToBlobStorage(avatarUrl, $"avatar/{channel.id}", cancellation);
         }
 
         if (!string.IsNullOrEmpty(bannerUrl) && bannerUrl.StartsWith("http"))
         {
-            bannerBlobUrl = (await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation));
+            bannerBlobUri = (await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation));
         }
 
         _publicUnitOfWork.Context.Entry(channel).Reload();
         channel = _channelRepository.LoadRelatedData(channel);
         channel.ChannelName = channelName;
-        channel.Avatar = avatarBlobUrl?.Replace("avatar/", "");
-        channel.Banner = bannerBlobUrl?.Replace("banner/", "");
+        channel.Avatar = avatarBlobUri?.Replace("avatar/", "");
+        channel.Banner = bannerBlobUri?.Replace("banner/", "");
         _channelRepository.Update(channel);
         _publicUnitOfWork.Commit();
     }

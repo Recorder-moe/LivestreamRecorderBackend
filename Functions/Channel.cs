@@ -54,61 +54,68 @@ public class Channel
             var channelId = "";
             var channelName = "";
             var url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(new[] { '/' });
-            // Youtube
-            if (data.Url.Contains("youtube"))
-            {
-                var info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
-                if (null == info)
-                {
-                    Logger.Warning("Failed to get channel info for {url}", data.Url);
-                    return new OkObjectResult("Failed");
-                }
 
-                channelId = info.ChannelId;
-                channelName = info.Uploader;
-                channel = channelService.ChannelExists(channelId)
-                    ? channelService.GetChannelById(channelId)
-                    : channelService.AddChannel(channelId, "Youtube", channelName);
+            string Platform;
+            if (url.Contains("youtube"))
+            {
+                Platform = "Youtube";
             }
-            // Twitch, Twitcasting
+            else if (url.Contains("twitcasting"))
+            {
+                Platform = "Twitcasting";
+            }
+            else if (url.Contains("twitch"))
+            {
+                Platform = "Twitch";
+            }
+            else if (url.Contains("fc2"))
+            {
+                Platform = "FC2";
+            }
             else
             {
-                channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
-                channelName = data.Name ?? "";
-
-                string Platform;
-                if (url.Contains("twitch"))
-                {
-                    Platform = "Twitch";
-                }
-                else if (url.Contains("twitcasting"))
-                {
-                    Platform = "Twitcasting";
-                }
-                else if (url.Contains("fc2"))
-                {
-                    Platform = "FC2";
-                }
-                else
-                {
-                    Logger.Warning("Unsupported platform for {url}", url);
-                    throw new InvalidOperationException($"Unsupported platform for {url}.");
-                }
-
-                channel = channelService.ChannelExists(channelId)
-                    ? channelService.GetChannelById(channelId)
-                    : channelService.AddChannel(id: channelId,
-                                                source: Platform,
-                                                channelName: channelName);
+                Logger.Warning("Unsupported platform for {url}", url);
+                throw new InvalidOperationException($"Unsupported platform for {url}.");
             }
-            Logger.Information("Finish adding channel {channelId}", channelId);
+
+            switch (Platform)
+            {
+                case "Youtube":
+                    var info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
+                    if (null == info)
+                    {
+                        Logger.Warning("Failed to get channel info for {url}", data.Url);
+                        return new OkObjectResult("Failed");
+                    }
+
+                    channelId = info.ChannelId;
+                    channelName = info.Uploader;
+                    break;
+                case "Twitcasting":
+                case "Twitch":
+                case "FC2":
+                default:
+                    channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
+                    channelName = data.Name ?? channelId;
+                    break;
+            }
+
+            channel = channelService.ChannelExists(channelId)
+                ? channelService.GetChannelById(channelId)
+                : channelService.AddChannel(id: channelId,
+                                            source: Platform,
+                                            channelName: channelName);
+
+            Logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
             var instanceId = await starter.StartNewAsync(
                 orchestratorFunctionName: nameof(UpdateChannel_Durable),
                 input: new UpdateChannelRequest()
                 {
                     id = channelId,
-                    ChannelName = data.Name ?? "",
+                    AutoUpdateInfo = channel.Source == "Youtube"
+                                     || channel.Source == "FC2",
+                    ChannelName = data.Name ?? channelName ?? channelId,
                     Avatar = data.Avatar,
                     Banner = data.Banner,
                 });
@@ -134,6 +141,7 @@ public class Channel
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> UpdateChannel_Http(
             [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")] HttpRequest req,
+            [DurableClient] IDurableClient starter,
             ClaimsPrincipal principal)
     {
         try
@@ -150,7 +158,9 @@ public class Channel
             var data = JsonConvert.DeserializeObject<UpdateChannelRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
-            await UpdateChannel_Inner(data);
+            var instanceId = await starter.StartNewAsync(
+                orchestratorFunctionName: nameof(UpdateChannel_Durable),
+                input: data);
 
             return new OkResult();
         }
@@ -166,34 +176,23 @@ public class Channel
     [OrchestrationTrigger] IDurableOrchestrationContext context)
     {
         UpdateChannelRequest data = context.GetInput<UpdateChannelRequest>();
-        _ = Task.Run(() => UpdateChannel_Inner(data));
-        return true;
-    }
-
-    private static async Task UpdateChannel_Inner(UpdateChannelRequest data)
-    {
-        Logger.Information("Start updating channel {channelId}", data.id);
-        using var channelService = new ChannelService();
-        var channel = channelService.GetChannelById(data.id);
-
-        // Youtube
-        if (channel.Source == "Youtube")
+        _ = Task.Run(async () =>
         {
-            await channelService.UpdateChannelData(channel);
-        }
-        // Twitch, Twitcasting, FC2
-        else
-        {
+            Logger.Information("Start updating channel {channelId}", data.id);
+            using var channelService = new ChannelService();
+            var channel = channelService.GetChannelById(data.id);
+
             if (null != data.Avatar)
             {
                 data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
                                          .Replace("70x70", "300x300");  // Twitch
             }
-            await channelService.UpdateChannelData(channel, data.ChannelName, data.Avatar, data.Banner);
-        }
+            await channelService.UpdateChannelData(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
-        channelService.EnableMonitoring(data.id);
-        Logger.Information("Finish updating channel {channelId}", data.id);
+            channelService.EnableMonitoring(data.id);
+            Logger.Information("Finish updating channel {channelId}", data.id);
+        });
+        return true;
     }
 
     [FunctionName(nameof(EnableChannelAsync))]
