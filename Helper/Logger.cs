@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace LivestreamRecorderBackend.Helper;
 
-internal static class Log
+public static class Log
 {
     private static ILogger? _logger;
 

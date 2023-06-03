@@ -1,6 +1,7 @@
 ﻿using Gravatar;
 using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
 using Serilog;
@@ -11,17 +12,20 @@ using System.Text.RegularExpressions;
 
 namespace LivestreamRecorderBackend.Services;
 
-public class UserService : IDisposable
+public class UserService
 {
-    private static ILogger Logger => Helper.Log.Logger;
-    private readonly UnitOfWork _privateUnitOfWork;
-    private readonly UserRepository _userRepository;
-    private bool _disposedValue;
+    private readonly IUnitOfWork _unitOfWork_Private;
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger _logger;
 
-    public UserService()
+    public UserService(
+        ILogger logger,
+        IUserRepository userRepository,
+        UnitOfWork_Private unitOfWork_Private)
     {
-        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext, UnitOfWork_Private>();
-        _userRepository = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
+        _logger = logger;
+        _userRepository = userRepository;
+        _unitOfWork_Private = unitOfWork_Private;
     }
 
     internal User GetUserById(string id) => _userRepository.GetById(id);
@@ -104,7 +108,7 @@ public class UserService : IDisposable
                     user.MicrosoftUID = uid;
                     break;
                 default:
-                    Logger.Error("Authentication Type {authType} is not support!!", authType);
+                    _logger.Error("Authentication Type {authType} is not support!!", authType);
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
 
@@ -124,7 +128,7 @@ public class UserService : IDisposable
             _userRepository.Update(user);
         }
 
-        _privateUnitOfWork.Commit();
+        _unitOfWork_Private.Commit();
     }
 
     /// <summary>
@@ -159,7 +163,7 @@ public class UserService : IDisposable
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
         var entry = _userRepository.Update(user);
-        _privateUnitOfWork.Commit();
+        _unitOfWork_Private.Commit();
         return entry.Entity;
 
         static bool ValidateEmail(string email_string)
@@ -176,13 +180,13 @@ public class UserService : IDisposable
     /// </summary>
     /// <param name="principal"></param>
     /// <exception cref="InvalidOperationException"></exception>
-    internal static string? GetUID(ClaimsPrincipal principal)
+    internal string? GetUID(ClaimsPrincipal principal)
     {
         var uid = principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
         if (string.IsNullOrEmpty(uid))
         {
             Helper.Log.LogClaimsPrincipal(principal);
-            Logger.Error("UID is null!");
+            _logger.Error("UID is null!");
         }
         return uid;
     }
@@ -209,7 +213,7 @@ public class UserService : IDisposable
             case "aad":
                 return GetUserByMicrosoftUID(uid!);
             default:
-                Logger.Error("Authentication Type {authType} is not support!!", authType);
+                _logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
         }
     }
@@ -227,44 +231,59 @@ public class UserService : IDisposable
             switch (authType)
             {
                 case "google":
-                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
                     user.GoogleUID = uid;
                     break;
                 case "github":
-                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
                     user.GithubUID = uid;
                     break;
                 case "aad":
-                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
                     user.MicrosoftUID = uid;
                     break;
                 default:
-                    Logger.Error("Authentication Type {authType} is not support!!", authType);
+                    _logger.Error("Authentication Type {authType} is not support!!", authType);
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
         }
         return user;
     }
 
-    #region Dispose
-    protected virtual void Dispose(bool disposing)
+    public User? AuthAndGetUser(ClaimsPrincipal principal, bool localhost = false)
     {
-        if (!_disposedValue)
+        try
         {
-            if (disposing)
+#if DEBUG
+            if (localhost)
             {
-                _privateUnitOfWork.Dispose();
+                return GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!);
             }
+            else
+            {
+                Helper.Log.LogClaimsPrincipal(principal);
+                return GetUserFromClaimsPrincipal(principal);
+            }
+#else
+            if (null == principal
+                || null == principal.Identity
+                || !principal.Identity.IsAuthenticated) return null;
 
-            _disposedValue = true;
+            return GetUserFromClaimsPrincipal(principal);
+#endif
+        }
+        catch (Exception e)
+        {
+            if (e is NotSupportedException or EntityNotFoundException)
+            {
+                _logger.Error(e, "User not found!!");
+                Helper.Log.LogClaimsPrincipal(principal);
+                return null;
+            }
+            else
+            {
+                throw;
+            }
         }
     }
-
-    public void Dispose()
-    {
-        // 請勿變更此程式碼。請將清除程式碼放入 'Dispose(bool disposing)' 方法
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-    #endregion
 }

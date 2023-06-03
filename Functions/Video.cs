@@ -21,7 +21,19 @@ namespace LivestreamRecorderBackend.Functions;
 
 public class Video
 {
-    private static ILogger Logger => Helper.Log.Logger;
+    private readonly ILogger _logger;
+    private readonly VideoService _videoService;
+    private readonly UserService _userService;
+
+    public Video(
+        ILogger logger,
+        VideoService videoService,
+        UserService userService)
+    {
+        _logger = logger;
+        _videoService = videoService;
+        _userService = userService;
+    }
 
     [FunctionName(nameof(AddVideoAsync))]
     [OpenApiOperation(operationId: nameof(AddVideoAsync), tags: new[] { nameof(Video) })]
@@ -34,11 +46,9 @@ public class Video
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
-
-            using var videoService = new VideoService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -53,20 +63,20 @@ public class Video
                 return new BadRequestObjectResult("Missing Url parameter.");
             }
 
-            var videoId = await videoService.AddVideoAsync(data.Url);
-            var video = videoService.GetVideoById(videoId);
+            var videoId = await _videoService.AddVideoAsync(data.Url);
+            var video = _videoService.GetVideoById(videoId);
             return new OkObjectResult(video);
         }
         catch (Exception e)
         {
             if (e is InvalidOperationException)
             {
-                Logger.Warning(e, e.Message);
+                _logger.Warning(e, e.Message);
                 Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddVideoAsync), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddVideoAsync), e);
             return new InternalServerErrorResult();
         }
     }
@@ -82,11 +92,9 @@ public class Video
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
-
-            using var videoService = new VideoService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -101,20 +109,20 @@ public class Video
                 return new BadRequestObjectResult("Missing videoId query parameter.");
             }
 
-            var video = videoService.GetVideoById(data.id);
+            var video = _videoService.GetVideoById(data.id);
             if (null == data)
             {
                 return new BadRequestObjectResult("Video not found.");
             }
 
-            videoService.UpdateVideo(video, data);
+            _videoService.UpdateVideo(video, data);
             return new OkResult();
         }
         catch (Exception e)
         {
             if (e is InvalidOperationException)
             {
-                Logger.Warning(e, e.Message);
+                _logger.Warning(e, e.Message);
                 Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
@@ -123,7 +131,7 @@ public class Video
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateVideo), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateVideo), e);
             return new InternalServerErrorResult();
         }
     }
@@ -139,11 +147,9 @@ public class Video
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
-
-            using var videoService = new VideoService();
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);
@@ -153,20 +159,20 @@ public class Video
                 return new BadRequestObjectResult("Missing videoId query parameter.");
             }
 
-            var video = videoService.GetVideoById(videoId);
+            var video = _videoService.GetVideoById(videoId);
             if (null == video)
             {
                 return new BadRequestObjectResult("Video not found.");
             }
 
-            videoService.RemoveVideo(video);
+            _videoService.RemoveVideo(video);
             return new OkResult();
         }
         catch (Exception e)
         {
             if (e is InvalidOperationException)
             {
-                Logger.Warning(e, e.Message);
+                _logger.Warning(e, e.Message);
                 Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
@@ -175,7 +181,7 @@ public class Video
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(RemoveVideo), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(RemoveVideo), e);
             return new InternalServerErrorResult();
         }
     }
@@ -190,11 +196,9 @@ public class Video
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
-
-            using var videoService = new VideoService();
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);
@@ -202,20 +206,20 @@ public class Video
             if (string.IsNullOrEmpty(videoId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            string? sASToken = await videoService.GetSASTokenAsync(videoId);
+            string? sASToken = await _videoService.GetSASTokenAsync(videoId);
             if (string.IsNullOrEmpty(sASToken))
             {
-                Logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, user.id);
+                _logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, user.id);
                 return new BadRequestObjectResult("Failed to generate SASToken.");
             }
 
-            Logger.Verbose("User {userId} has generated a SAS token for video {videoId}", user.id, videoId);
+            _logger.Verbose("User {userId} has generated a SAS token for video {videoId}", user.id, videoId);
 
             return new OkObjectResult(sASToken);
         }
         catch (Exception e)
         {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSASToken), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSASToken), e);
             return new InternalServerErrorResult();
         }
     }

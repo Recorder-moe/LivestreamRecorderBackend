@@ -4,25 +4,16 @@ using System;
 
 namespace LivestreamRecorderBackend.Services;
 
-public class ABSservice
+public class ABSService
 {
     private readonly BlobContainerClient _blobContainerClient;
     private readonly BlobContainerClient _blobContainerClient_public;
 
-    public ABSservice()
+    public ABSService(
+        BlobServiceClient blobServiceClient)
     {
-        string? connectionString = Environment.GetEnvironmentVariable("Blob_ConnectionString");
         string? blobContainerName = Environment.GetEnvironmentVariable("Blob_ContainerName");
         string? blobContainerNamePublic = Environment.GetEnvironmentVariable("Blob_ContainerNamePublic");
-
-        if (string.IsNullOrWhiteSpace(connectionString)
-            || string.IsNullOrWhiteSpace(blobContainerName)
-            || string.IsNullOrWhiteSpace(blobContainerNamePublic))
-        {
-            throw new ArgumentNullException("blob settings");
-        }
-
-        var blobServiceClient = new BlobServiceClient(connectionString);
         _blobContainerClient = blobServiceClient.GetBlobContainerClient(blobContainerName);
         _blobContainerClient_public = blobServiceClient.GetBlobContainerClient(blobContainerNamePublic);
     }

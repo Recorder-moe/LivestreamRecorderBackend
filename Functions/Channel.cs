@@ -23,7 +23,19 @@ namespace LivestreamRecorderBackend.Functions;
 
 public class Channel
 {
-    private static ILogger Logger => Helper.Log.Logger;
+    private readonly ILogger _logger;
+    private readonly ChannelService _channelService;
+    private readonly UserService _userService;
+
+    public Channel(
+        ILogger logger,
+        ChannelService channelService,
+        UserService userService)
+    {
+        _logger = logger;
+        _channelService = channelService;
+        _userService = userService;
+    }
 
     [FunctionName(nameof(AddChannelAsync))]
     [OpenApiOperation(operationId: nameof(AddChannelAsync), tags: new[] { nameof(Channel) })]
@@ -36,11 +48,9 @@ public class Channel
     {
         try
         {
-            var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
-
-            using var channelService = new ChannelService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -74,7 +84,7 @@ public class Channel
             }
             else
             {
-                Logger.Warning("Unsupported platform for {url}", url);
+                _logger.Warning("Unsupported platform for {url}", url);
                 throw new InvalidOperationException($"Unsupported platform for {url}.");
             }
 
@@ -84,7 +94,7 @@ public class Channel
                     var info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
                     if (null == info)
                     {
-                        Logger.Warning("Failed to get channel info for {url}", data.Url);
+                        _logger.Warning("Failed to get channel info for {url}", data.Url);
                         return new OkObjectResult("Failed");
                     }
 
@@ -100,13 +110,13 @@ public class Channel
                     break;
             }
 
-            channel = channelService.ChannelExists(channelId)
-                ? channelService.GetChannelById(channelId)
-                : channelService.AddChannel(id: channelId,
+            channel = _channelService.ChannelExists(channelId)
+                ? _channelService.GetChannelById(channelId)
+                : _channelService.AddChannel(id: channelId,
                                             source: Platform,
                                             channelName: channelName);
 
-            Logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
+            _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
             var instanceId = await starter.StartNewAsync(
                 orchestratorFunctionName: nameof(UpdateChannel_Durable),
@@ -130,7 +140,7 @@ public class Channel
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
             return new InternalServerErrorResult();
         }
     }
@@ -146,7 +156,7 @@ public class Channel
     {
         try
         {
-            var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
@@ -166,31 +176,30 @@ public class Channel
         }
         catch (Exception e)
         {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateChannel_Http), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateChannel_Http), e);
             return new InternalServerErrorResult();
         }
     }
 
     [FunctionName(nameof(UpdateChannel_Durable))]
-    public static bool UpdateChannel_Durable(
+    public bool UpdateChannel_Durable(
     [OrchestrationTrigger] IDurableOrchestrationContext context)
     {
         UpdateChannelRequest data = context.GetInput<UpdateChannelRequest>();
         _ = Task.Run(async () =>
         {
-            Logger.Information("Start updating channel {channelId}", data.id);
-            using var channelService = new ChannelService();
-            var channel = channelService.GetChannelById(data.id);
+            _logger.Information("Start updating channel {channelId}", data.id);
+            var channel = _channelService.GetChannelById(data.id);
 
             if (null != data.Avatar)
             {
                 data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
                                          .Replace("70x70", "300x300");  // Twitch
             }
-            await channelService.UpdateChannelData(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
+            await _channelService.UpdateChannelData(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
-            channelService.EnableMonitoring(data.id);
-            Logger.Information("Finish updating channel {channelId}", data.id);
+            _channelService.EnableMonitoring(data.id);
+            _logger.Information("Finish updating channel {channelId}", data.id);
         });
         return true;
     }
@@ -205,11 +214,9 @@ public class Channel
     {
         try
         {
-            var user = Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
-
-            using var channelService = new ChannelService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -220,9 +227,9 @@ public class Channel
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (data.Monitoring)
-                channelService.EnableMonitoring(data.id);
+                _channelService.EnableMonitoring(data.id);
             else
-                channelService.DisableMonitoring(data.id);
+                _channelService.DisableMonitoring(data.id);
 
             return new OkResult();
         }
@@ -234,7 +241,7 @@ public class Channel
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(EnableChannelAsync), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(EnableChannelAsync), e);
             return new InternalServerErrorResult();
         }
     }

@@ -21,7 +21,16 @@ namespace LivestreamRecorderBackend.Functions;
 
 public class User
 {
-    private static ILogger Logger => Helper.Log.Logger;
+    private readonly ILogger _logger;
+    private readonly UserService _userService;
+
+    public User(
+        ILogger logger,
+        UserService userService)
+    {
+        _logger = logger;
+        _userService = userService;
+    }
 
     [FunctionName(nameof(GetUser))]
     [OpenApiOperation(operationId: nameof(GetUser), tags: new[] { nameof(User) })]
@@ -32,7 +41,7 @@ public class User
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
 
             var result = new GetUserResponse();
@@ -44,7 +53,7 @@ public class User
         }
         catch (Exception e)
         {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetUser), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetUser), e);
             return new InternalServerErrorResult();
         }
     }
@@ -59,8 +68,6 @@ public class User
     {
         try
         {
-            using var userService = new UserService();
-
 #if DEBUG
             if (req.Host.Host == "localhost")
             {
@@ -73,7 +80,7 @@ public class User
                 || null == principal.Identity
                 || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
 
-            userService.CreateOrUpdateUserWithOAuthClaims(principal);
+            _userService.CreateOrUpdateUserWithOAuthClaims(principal);
             return new OkResult();
         }
         catch (Exception e)
@@ -84,7 +91,7 @@ public class User
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(CreateOrUpdateUserFromEasyAuth), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(CreateOrUpdateUserFromEasyAuth), e);
             return new InternalServerErrorResult();
         }
     }
@@ -99,10 +106,8 @@ public class User
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
             if (null == user) return new UnauthorizedResult();
-
-            using var userService = new UserService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -112,7 +117,7 @@ public class User
             UpdateUserRequest data = JsonConvert.DeserializeObject<UpdateUserRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
-            user = userService.UpdateUser(data, user);
+            user = _userService.UpdateUser(data, user);
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
             return new JsonResult(result, new JsonSerializerSettings()
@@ -124,12 +129,12 @@ public class User
         {
             if (e is InvalidOperationException)
             {
-                Logger.Warning(e, e.Message);
+                _logger.Warning(e, e.Message);
                 Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateUser), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateUser), e);
             return new InternalServerErrorResult();
         }
     }

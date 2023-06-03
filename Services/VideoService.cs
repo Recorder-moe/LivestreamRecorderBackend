@@ -9,20 +9,23 @@ using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services;
 
-internal class VideoService : IDisposable
+public class VideoService
 {
-    private static ILogger Logger => Helper.Log.Logger;
-    private bool _disposedValue;
-    private readonly IUnitOfWork _publicUnitOfWork;
-    private readonly VideoRepository _videoRepository;
-    private readonly ABSservice _aBSService;
+    private readonly IUnitOfWork _unitOfWork_Public;
+    private readonly IVideoRepository _videoRepository;
+    private readonly ILogger _logger;
+    private readonly ABSService _aBSservice;
 
-    public VideoService()
+    public VideoService(
+        ILogger logger,
+        ABSService aBSservice,
+        IVideoRepository videoRepository,
+        UnitOfWork_Public unitOfWork_Public)
     {
-        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
-        _videoRepository = new VideoRepository((UnitOfWork_Public)_publicUnitOfWork);
-
-        _aBSService = new ABSservice();
+        _logger = logger;
+        _aBSservice = aBSservice;
+        _videoRepository = videoRepository;
+        _unitOfWork_Public = unitOfWork_Public;
     }
 
     internal bool IsVideoArchived(string videoId)
@@ -57,21 +60,21 @@ internal class VideoService : IDisposable
         }
         else
         {
-            Logger.Warning("Unsupported platform for {url}", url);
+            _logger.Warning("Unsupported platform for {url}", url);
             throw new InvalidOperationException($"Unsupported platform for {url}.");
         }
 
         var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync(url);
         if (null == info || string.IsNullOrEmpty(info.Id))
         {
-            Logger.Warning("Failed to get video info for {url}", url);
+            _logger.Warning("Failed to get video info for {url}", url);
             throw new InvalidOperationException($"Failed to get video info for {url}.");
         }
 
         var id = info.Id;
         if (_videoRepository.Exists(id))
         {
-            Logger.Warning("Video {videoId} already exists", id);
+            _logger.Warning("Video {videoId} already exists", id);
             throw new InvalidOperationException($"Video {id} already exists.");
         }
 
@@ -89,7 +92,7 @@ internal class VideoService : IDisposable
                 PublishedAt = DateTime.UtcNow,
             },
         });
-        _publicUnitOfWork.Commit();
+        _unitOfWork_Public.Commit();
 
         return id;
     }
@@ -101,15 +104,15 @@ internal class VideoService : IDisposable
         if (null != updateVideoRequest.SourceStatus) v.SourceStatus = updateVideoRequest.SourceStatus.Value;
         if (null != updateVideoRequest.Note) v.Note = updateVideoRequest.Note;
         _videoRepository.Update(v);
-        _publicUnitOfWork.Commit();
+        _unitOfWork_Public.Commit();
     }
 
     internal void RemoveVideo(Video video)
     {
         video.Status = VideoStatus.Deleted;
         _videoRepository.Update(video);
-        _publicUnitOfWork.Commit();
-        var blobClient = _aBSService.GetVideoBlob(video);
+        _unitOfWork_Public.Commit();
+        var blobClient = _aBSservice.GetVideoBlob(video);
         blobClient.DeleteIfExists();
     }
 
@@ -122,33 +125,11 @@ internal class VideoService : IDisposable
     internal async Task<string?> GetSASTokenAsync(string videoId)
     {
         var video = GetVideoById(videoId);
-        var blobClient = _aBSService.GetVideoBlob(video);
+        var blobClient = _aBSservice.GetVideoBlob(video);
         return null != blobClient
                    && await blobClient.ExistsAsync()
                    && blobClient.CanGenerateSasUri
                ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12)).Query
                : null;
     }
-
-    #region Dispose
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposedValue)
-        {
-            if (disposing)
-            {
-                _publicUnitOfWork.Context.Dispose();
-            }
-
-            _disposedValue = true;
-        }
-    }
-
-    public void Dispose()
-    {
-        // 請勿變更此程式碼。請將清除程式碼放入 'Dispose(bool disposing)' 方法
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-    #endregion
 }

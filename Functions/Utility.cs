@@ -10,7 +10,13 @@ namespace LivestreamRecorderBackend.Functions;
 
 public class Utility
 {
-    private static ILogger Logger => Helper.Log.Logger;
+    private readonly ILogger _logger;
+
+    public Utility(
+        ILogger logger)
+    {
+        _logger = logger;
+    }
 
     [FunctionName(nameof(Wake))]
     [OpenApiOperation(operationId: nameof(Wake), tags: new[] { nameof(Utility) })]
@@ -27,11 +33,11 @@ public class Utility
         => Wake();
 #endif
 
-    private static void Wake()
+    private void Wake()
     {
 #if DEBUG
 #pragma warning disable IDE0022 // 使用方法的運算式主體
-        Logger.Verbose("Wake executed at: {time}", System.DateTime.Now);
+        _logger.Verbose("Wake executed at: {time}", System.DateTime.Now);
 #pragma warning restore IDE0022 // 使用方法的運算式主體
 #endif
     }
