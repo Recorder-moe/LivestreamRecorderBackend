@@ -13,7 +13,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -41,12 +40,11 @@ public class Video
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest)]
     public async Task<IActionResult> AddVideoAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Video")] HttpRequest req,
-        ClaimsPrincipal principal)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Video")] HttpRequest req)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
@@ -72,7 +70,6 @@ public class Video
             if (e is InvalidOperationException)
             {
                 _logger.Warning(e, e.Message);
-                Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
 
@@ -81,25 +78,24 @@ public class Video
         }
     }
 
-    [FunctionName(nameof(UpdateVideo))]
-    [OpenApiOperation(operationId: nameof(UpdateVideo), tags: new[] { nameof(Video) })]
+    [FunctionName(nameof(UpdateVideoAsync))]
+    [OpenApiOperation(operationId: nameof(UpdateVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiRequestBody("application/json", typeof(UpdateVideoRequest), Required = true)]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Video not found.")]
-    public IActionResult UpdateVideo(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req,
-        ClaimsPrincipal principal)
+    public async Task<IActionResult> UpdateVideoAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
             {
-                requestBody = streamReader.ReadToEnd();
+                requestBody = await streamReader.ReadToEndAsync();
             }
             UpdateVideoRequest data = JsonConvert.DeserializeObject<UpdateVideoRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
@@ -123,7 +119,6 @@ public class Video
             if (e is InvalidOperationException)
             {
                 _logger.Warning(e, e.Message);
-                Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
             else if (e is EntityNotFoundException)
@@ -131,23 +126,22 @@ public class Video
                 return new BadRequestObjectResult(e.Message);
             }
 
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateVideo), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateVideoAsync), e);
             return new InternalServerErrorResult();
         }
     }
 
-    [FunctionName(nameof(RemoveVideo))]
-    [OpenApiOperation(operationId: nameof(RemoveVideo), tags: new[] { nameof(Video) })]
+    [FunctionName(nameof(RemoveVideoAsync))]
+    [OpenApiOperation(operationId: nameof(RemoveVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
-    public IActionResult RemoveVideo(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Video")] HttpRequest req,
-        ClaimsPrincipal principal)
+    public async Task<IActionResult> RemoveVideoAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Video")] HttpRequest req)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
@@ -173,7 +167,6 @@ public class Video
             if (e is InvalidOperationException)
             {
                 _logger.Warning(e, e.Message);
-                Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
             else if (e is EntityNotFoundException)
@@ -181,7 +174,7 @@ public class Video
                 return new BadRequestObjectResult(e.Message);
             }
 
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(RemoveVideo), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(RemoveVideoAsync), e);
             return new InternalServerErrorResult();
         }
     }
@@ -191,12 +184,11 @@ public class Video
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The SAS Token.")]
     public async Task<IActionResult> GetSASToken(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/SASToken")] HttpRequest req,
-            ClaimsPrincipal principal)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/SASToken")] HttpRequest req)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 

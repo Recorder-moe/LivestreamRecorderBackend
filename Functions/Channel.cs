@@ -15,7 +15,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -43,12 +42,11 @@ public class Channel
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> AddChannelAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel")] HttpRequest req,
-        [DurableClient] IDurableClient starter,
-        ClaimsPrincipal principal)
+        [DurableClient] IDurableClient starter)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
@@ -136,7 +134,6 @@ public class Channel
         {
             if (e is InvalidOperationException)
             {
-                Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
 
@@ -151,12 +148,11 @@ public class Channel
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> UpdateChannel_Http(
             [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")] HttpRequest req,
-            [DurableClient] IDurableClient starter,
-            ClaimsPrincipal principal)
+            [DurableClient] IDurableClient starter)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
@@ -209,12 +205,11 @@ public class Channel
     [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
     public async Task<IActionResult> EnableChannelAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/EnableChannel")] HttpRequest req,
-        ClaimsPrincipal principal)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/EnableChannel")] HttpRequest req)
     {
         try
         {
-            var user = _userService.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new ForbidResult();
 
@@ -237,7 +232,6 @@ public class Channel
         {
             if (e is EntityNotFoundException)
             {
-                Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
 

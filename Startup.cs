@@ -2,6 +2,7 @@
 using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorderBackend.Services;
+using LivestreamRecorderBackend.Services.Authentication;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
@@ -52,6 +53,8 @@ namespace LivestreamRecorderBackend
             builder.Services.AddScoped<UserService>();
             builder.Services.AddScoped<VideoService>();
             builder.Services.AddScoped<FC2Service>();
+
+            builder.Services.AddScoped<GoogleService>();
         }
     }
 }

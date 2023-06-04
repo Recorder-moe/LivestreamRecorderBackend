@@ -4,28 +4,34 @@ using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
+using LivestreamRecorderBackend.Services.Authentication;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services;
 
 public class UserService
 {
     private readonly IUnitOfWork _unitOfWork_Private;
+    private readonly GoogleService _googleService;
     private readonly IUserRepository _userRepository;
     private readonly ILogger _logger;
 
     public UserService(
         ILogger logger,
         IUserRepository userRepository,
-        UnitOfWork_Private unitOfWork_Private)
+        UnitOfWork_Private unitOfWork_Private,
+        GoogleService googleService)
     {
         _logger = logger;
         _userRepository = userRepository;
         _unitOfWork_Private = unitOfWork_Private;
+        _googleService = googleService;
     }
 
     internal User GetUserById(string id) => _userRepository.GetById(id);
@@ -81,8 +87,9 @@ public class UserService
 
         // First user
         int UserCount = _userRepository.All().Count();
-        if (UserCount == 0
-            || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true)
+        if (null == user
+            && (UserCount == 0
+                || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true))
         {
             user = new User()
             {
@@ -250,34 +257,36 @@ public class UserService
         return user;
     }
 
-    public User? AuthAndGetUser(ClaimsPrincipal principal, bool localhost = false)
+    public async Task<User?> AuthAndGetUserAsync(IHeaderDictionary headers)
     {
+        if (!headers.TryGetValue("Authorization", out var authHeader)
+            || authHeader.Count == 0) return null;
+        var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+        return AuthAndGetUser(await _googleService.GetUserInfoFromTokenAsync(token));
+    }
+
+    public async Task<User?> AuthAndGetUserAsync(string token)
+        => AuthAndGetUser(await _googleService.GetUserInfoFromTokenAsync(token));
+
+    public User? AuthAndGetUser(ClaimsPrincipal principal)
+    {
+#if DEBUG
+        Helper.Log.LogClaimsPrincipal(principal);
+#endif
+
         try
         {
-#if DEBUG
-            if (localhost)
-            {
-                return GetUserById(Environment.GetEnvironmentVariable("ADMIN_USER_ID")!);
-            }
-            else
-            {
-                Helper.Log.LogClaimsPrincipal(principal);
-                return GetUserFromClaimsPrincipal(principal);
-            }
-#else
-            if (null == principal
-                || null == principal.Identity
-                || !principal.Identity.IsAuthenticated) return null;
-
-            return GetUserFromClaimsPrincipal(principal);
-#endif
+            return null != principal
+                && null != principal.Identity
+                && principal.Identity.IsAuthenticated
+                ? GetUserFromClaimsPrincipal(principal)
+                : null;
         }
         catch (Exception e)
         {
             if (e is NotSupportedException or EntityNotFoundException)
             {
                 _logger.Error(e, "User not found!!");
-                Helper.Log.LogClaimsPrincipal(principal);
                 return null;
             }
             else
