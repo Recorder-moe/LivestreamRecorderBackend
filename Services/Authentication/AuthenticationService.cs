@@ -10,15 +10,18 @@ public class AuthenticationService
     private readonly IAuthenticationHandlerService _googleService;
     private readonly IAuthenticationHandlerService _githubService;
     private readonly IAuthenticationHandlerService _microsoftService;
+    private readonly IAuthenticationHandlerService _discordService;
 
     public AuthenticationService(
         GoogleService googleService,
         GithubService githubService,
-        MicrosoftService microsoftService)
+        MicrosoftService microsoftService,
+        DiscordService discordService)
     {
         _googleService = googleService;
         _githubService = githubService;
         _microsoftService = microsoftService;
+        _discordService = discordService;
     }
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
@@ -38,7 +41,11 @@ public class AuthenticationService
             return await _microsoftService.GetUserInfoFromTokenAsync(token);
         }
         catch (Exception) { }
-
+        try
+        {
+            return await _discordService.GetUserInfoFromTokenAsync(token);
+        }
+        catch (Exception) { }
 
         throw new InvalidOperationException("Token not support");
     }

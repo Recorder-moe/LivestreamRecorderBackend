@@ -64,6 +64,7 @@ namespace LivestreamRecorderBackend
             builder.Services.AddScoped<GoogleService>();
             builder.Services.AddScoped<GithubService>();
             builder.Services.AddScoped<MicrosoftService>();
+            builder.Services.AddScoped<DiscordService>();
         }
     }
 }

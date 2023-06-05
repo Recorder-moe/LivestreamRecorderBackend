@@ -67,6 +67,17 @@ public class UserService
         => _userRepository.Where(p => p.MicrosoftUID == microsoftUID).SingleOrDefault()
             ?? throw new EntityNotFoundException($"Entity with MicrosoftUID: {microsoftUID} was not found.");
 
+    /// <summary>
+    /// Get User by GithubUID
+    /// </summary>
+    /// <param name="microsoftUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    internal User GetUserByDiscordUID(string discordUID)
+        => _userRepository.Where(p => p.DiscordUID == discordUID).SingleOrDefault()
+            ?? throw new EntityNotFoundException($"Entity with DiscordUID: {discordUID} was not found.");
+
+
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
@@ -117,6 +128,9 @@ public class UserService
                     break;
                 case "aad":
                     user.MicrosoftUID = uid;
+                    break;
+                case "discord":
+                    user.DiscordUID = uid;
                     break;
                 default:
                     _logger.Error("Authentication Type {authType} is not support!!", authType);
@@ -223,6 +237,8 @@ public class UserService
                 return GetUserByGithubUID(uid!);
             case "aad":
                 return GetUserByMicrosoftUID(uid!);
+            case "discord":
+                return GetUserByDiscordUID(uid!);
             default:
                 _logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
@@ -236,7 +252,8 @@ public class UserService
 
         if (null == principal.Identity.Name) return null;
 
-        var user = _userRepository.Where(p => p.Email.Contains(principal.Identity.Name)).SingleOrDefault();
+        var user = _userRepository.Where(p => p.Email == principal.FindFirstValue(ClaimTypes.Email)).SingleOrDefault()
+                    ?? _userRepository.Where(p => p.Email.Contains(principal.Identity.Name)).SingleOrDefault();
         if (null != user)
         {
             switch (authType)
@@ -252,6 +269,10 @@ public class UserService
                 case "aad":
                     _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
                     user.MicrosoftUID = uid;
+                    break;
+                case "discord":
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
+                    user.DiscordUID = uid;
                     break;
                 default:
                     _logger.Error("Authentication Type {authType} is not support!!", authType);
