@@ -9,6 +9,7 @@ using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -52,9 +53,11 @@ public class Authentication
             throw new Exception(error);
         }
 
+        var backEnd = req.Headers.Referer.FirstOrDefault() ?? req.GetDisplayUrl();
+
         string idToken = await _githubService.GetIdTokenAsync(
             authorization_code: code,
-            redirectUri: AuthenticationService.GetRedirectUri(req.GetDisplayUrl(), "api/signin-github"));
+            redirectUri: AuthenticationService.GetRedirectUri(backEnd, "api/signin-github"));
 
         // Treat it as an implicit flow-style URL so that my front-end can easily handle it with packages (angular-oauth2-oidc).
         return new RedirectResult($"{_frontEndUri}/pages/login-redirect?issuer=https%3A%2F%2Fgithub.com#state={state}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
