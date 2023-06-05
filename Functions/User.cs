@@ -1,6 +1,7 @@
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorderBackend.DTO.User;
 using LivestreamRecorderBackend.Services;
+using LivestreamRecorderBackend.Services.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -13,26 +14,40 @@ using Omu.ValueInjecter;
 using Serilog;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace LivestreamRecorderBackend.Functions;
 
 public class User
 {
-    private static ILogger Logger => Helper.Log.Logger;
+    private readonly ILogger _logger;
+    private readonly UserService _userService;
+    private readonly AuthenticationService _authenticationService;
 
-    [FunctionName(nameof(GetUser))]
-    [OpenApiOperation(operationId: nameof(GetUser), tags: new[] { nameof(User) })]
+    public User(
+        ILogger logger,
+        UserService userService,
+        AuthenticationService authenticationService)
+    {
+        _logger = logger;
+        _userService = userService;
+        _authenticationService = authenticationService;
+    }
+
+    [FunctionName(nameof(GetUserAsync))]
+    [OpenApiOperation(operationId: nameof(GetUserAsync), tags: new[] { nameof(User) })]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
-    public IActionResult GetUser(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User")] HttpRequest req, ClaimsPrincipal principal)
+    public async Task<IActionResult> GetUserAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User")] HttpRequest req)
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
 
             var result = new GetUserResponse();
@@ -44,75 +59,67 @@ public class User
         }
         catch (Exception e)
         {
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetUser), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetUserAsync), e);
             return new InternalServerErrorResult();
         }
     }
 
 
-    [FunctionName(nameof(CreateOrUpdateUserFromEasyAuth))]
-    [OpenApiOperation(operationId: nameof(CreateOrUpdateUserFromEasyAuth), tags: new[] { nameof(User) })]
+    [FunctionName(nameof(CreateOrUpdateUser))]
+    [OpenApiOperation(operationId: nameof(CreateOrUpdateUser), tags: new[] { nameof(User) })]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
-    public IActionResult CreateOrUpdateUserFromEasyAuth(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")] HttpRequest req, ClaimsPrincipal principal)
+    public async Task<IActionResult> CreateOrUpdateUser(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")] HttpRequest req)
     {
         try
         {
-            using var userService = new UserService();
-
-#if DEBUG
-            if (req.Host.Host == "localhost")
-            {
-                Helper.Log.LogClaimsPrincipal(principal);
-                return new OkResult();
-            }
-#endif
+            if (!req.Headers.TryGetValue("Authorization", out var authHeader)
+                || authHeader.Count == 0) return new UnauthorizedResult();
+            var idToken = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+            var principal = await _authenticationService.GetUserInfoFromTokenAsync(idToken);
 
             if (null == principal
                 || null == principal.Identity
                 || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
 
-            userService.CreateOrUpdateUserWithOAuthClaims(principal);
+            _userService.CreateOrUpdateUserWithOAuthClaims(principal);
             return new OkResult();
         }
         catch (Exception e)
         {
             if (e is NotSupportedException or EntityNotFoundException)
             {
-                Helper.Log.LogClaimsPrincipal(principal);
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(CreateOrUpdateUserFromEasyAuth), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(CreateOrUpdateUser), e);
             return new InternalServerErrorResult();
         }
     }
 
-    [FunctionName(nameof(UpdateUser))]
-    [OpenApiOperation(operationId: nameof(UpdateUser), tags: new[] { nameof(User) })]
+    [FunctionName(nameof(UpdateUserAsync))]
+    [OpenApiOperation(operationId: nameof(UpdateUserAsync), tags: new[] { nameof(User) })]
     [OpenApiRequestBody("application/json", typeof(UpdateUserRequest), Required = true)]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
-    public IActionResult UpdateUser(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "User")] HttpRequest req, ClaimsPrincipal principal)
+    public async Task<IActionResult> UpdateUserAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "User")] HttpRequest req)
     {
         try
         {
-            var user = Helper.Auth.AuthAndGetUser(principal, req.Host.Host == "localhost");
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-
-            using var userService = new UserService();
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
             {
-                requestBody = streamReader.ReadToEnd();
+                requestBody = await streamReader.ReadToEndAsync();
             }
             UpdateUserRequest data = JsonConvert.DeserializeObject<UpdateUserRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
-            user = userService.UpdateUser(data, user);
+            user = _userService.UpdateUser(data, user);
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
             return new JsonResult(result, new JsonSerializerSettings()
@@ -124,12 +131,11 @@ public class User
         {
             if (e is InvalidOperationException)
             {
-                Logger.Warning(e, e.Message);
-                Helper.Log.LogClaimsPrincipal(principal);
+                _logger.Warning(e, e.Message);
                 return new BadRequestObjectResult(e.Message);
             }
 
-            Logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateUser), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateUserAsync), e);
             return new InternalServerErrorResult();
         }
     }

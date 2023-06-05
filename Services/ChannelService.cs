@@ -15,20 +15,29 @@ using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services;
 
-internal class ChannelService : IDisposable
+public class ChannelService
 {
-    private static ILogger Logger => Helper.Log.Logger;
-    private bool _disposedValue;
-    private readonly IUnitOfWork _publicUnitOfWork;
-    private readonly ChannelRepository _channelRepository;
-    private readonly ABSservice _aBSService;
+    private readonly IUnitOfWork _unitOfWork_Public;
+    private readonly FC2Service _fC2Service;
+    private readonly HttpClient _httpClient;
+    private readonly IChannelRepository _channelRepository;
+    private readonly ILogger _logger;
+    private readonly ABSService _aBSservice;
 
-    public ChannelService()
+    public ChannelService(
+        ILogger logger,
+        ABSService aBSservice,
+        IChannelRepository channelRepository,
+        UnitOfWork_Public unitOfWork_Public,
+        FC2Service fC2Service,
+        IHttpClientFactory httpClientFactory)
     {
-        (_, _publicUnitOfWork) = Helper.Database.MakeDBContext<PublicContext, UnitOfWork_Public>();
-        _channelRepository = new ChannelRepository((UnitOfWork_Public)_publicUnitOfWork);
-
-        _aBSService = new ABSservice();
+        _channelRepository = channelRepository;
+        _unitOfWork_Public = unitOfWork_Public;
+        _fC2Service = fC2Service;
+        _httpClient = httpClientFactory.CreateClient("client");
+        _logger = logger;
+        _aBSservice = aBSservice;
     }
 
     internal Channel GetChannelById(string id) => _channelRepository.GetById(id);
@@ -47,13 +56,13 @@ internal class ChannelService : IDisposable
         };
 
         // Hide FC2 channels by default
-        if(source == "FC2")
+        if (source == "FC2")
         {
             channel.Hide = true;
         }
 
         _channelRepository.Add(channel);
-        _publicUnitOfWork.Commit();
+        _unitOfWork_Public.Commit();
         return channel;
     }
 
@@ -72,7 +81,7 @@ internal class ChannelService : IDisposable
                         var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
                         if (null == info)
                         {
-                            Logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                            _logger.Warning("Failed to get channel info for {channelId}", channel.id);
                             return;
                         }
 
@@ -85,10 +94,10 @@ internal class ChannelService : IDisposable
                     break;
                 case "FC2":
                     {
-                        var info = await Helper.FC2Helper.GetFC2InfoDataAsync(channel.id, cancellation);
+                        var info = await _fC2Service.GetFC2InfoDataAsync(channel.id, cancellation);
                         if (null == info)
                         {
-                            Logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                            _logger.Warning("Failed to get channel info for {channelId}", channel.id);
                             return;
                         }
 
@@ -116,13 +125,13 @@ internal class ChannelService : IDisposable
             bannerBlobUri = (await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation));
         }
 
-        _publicUnitOfWork.Context.Entry(channel).Reload();
+        _unitOfWork_Public.Context.Entry(channel).Reload();
         channel = _channelRepository.LoadRelatedData(channel);
         channel.ChannelName = channelName;
         channel.Avatar = avatarBlobUri?.Replace("avatar/", "");
         channel.Banner = bannerBlobUri?.Replace("banner/", "");
         _channelRepository.Update(channel);
-        _publicUnitOfWork.Commit();
+        _unitOfWork_Public.Commit();
     }
 
     /// <summary>
@@ -157,8 +166,7 @@ internal class ChannelService : IDisposable
             throw new ArgumentNullException(nameof(path));
         }
 
-        using var client = new HttpClient();
-        var response = await client.GetAsync(url, cancellation);
+        var response = await _httpClient.GetAsync(url, cancellation);
         if (!response.IsSuccessStatusCode) return null;
 
         var contentType = response.Content.Headers.ContentType?.MediaType;
@@ -176,14 +184,14 @@ internal class ChannelService : IDisposable
 
         List<Task> tasks = new();
 
-        var blobClient = _aBSService.GetPublicBlob(pathInStorage)!;
+        var blobClient = _aBSservice.GetPublicBlob(pathInStorage)!;
         tasks.Add(blobClient.UploadAsync(
              path: tempPath,
              httpHeaders: new BlobHttpHeaders { ContentType = contentType },
              accessTier: AccessTier.Hot,
         cancellationToken: cancellation));
 
-        var avifblobClient = _aBSService.GetPublicBlob($"{path}.avif")!;
+        var avifblobClient = _aBSservice.GetPublicBlob($"{path}.avif")!;
         tasks.Add(avifblobClient.UploadAsync(
              path: await ImageHelper.ConvertToAvifAsync(tempPath),
              httpHeaders: new BlobHttpHeaders { ContentType = KnownMimeTypes.Avif },
@@ -203,7 +211,7 @@ internal class ChannelService : IDisposable
         var channel = _channelRepository.GetById(channelId);
         channel.Monitoring = true;
         _channelRepository.Update(channel);
-        _publicUnitOfWork.Commit();
+        _unitOfWork_Public.Commit();
     }
 
     public void DisableMonitoring(string channelId)
@@ -211,28 +219,6 @@ internal class ChannelService : IDisposable
         var channel = _channelRepository.GetById(channelId);
         channel.Monitoring = false;
         _channelRepository.Update(channel);
-        _publicUnitOfWork.Commit();
+        _unitOfWork_Public.Commit();
     }
-
-    #region Dispose
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposedValue)
-        {
-            if (disposing)
-            {
-                _publicUnitOfWork.Context.Dispose();
-            }
-
-            _disposedValue = true;
-        }
-    }
-
-    public void Dispose()
-    {
-        // 請勿變更此程式碼。請將清除程式碼放入 'Dispose(bool disposing)' 方法
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-    #endregion
 }

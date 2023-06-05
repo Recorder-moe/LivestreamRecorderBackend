@@ -1,27 +1,37 @@
 ﻿using Gravatar;
 using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
+using LivestreamRecorderBackend.Services.Authentication;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services;
 
-public class UserService : IDisposable
+public class UserService
 {
-    private static ILogger Logger => Helper.Log.Logger;
-    private readonly UnitOfWork _privateUnitOfWork;
-    private readonly UserRepository _userRepository;
-    private bool _disposedValue;
+    private readonly IUnitOfWork _unitOfWork_Private;
+    private readonly AuthenticationService _authenticationService;
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger _logger;
 
-    public UserService()
+    public UserService(
+        ILogger logger,
+        IUserRepository userRepository,
+        UnitOfWork_Private unitOfWork_Private,
+        AuthenticationService authenticationService)
     {
-        (_, _privateUnitOfWork) = Helper.Database.MakeDBContext<PrivateContext, UnitOfWork_Private>();
-        _userRepository = new UserRepository((UnitOfWork_Private)_privateUnitOfWork);
+        _logger = logger;
+        _userRepository = userRepository;
+        _unitOfWork_Private = unitOfWork_Private;
+        _authenticationService = authenticationService;
     }
 
     internal User GetUserById(string id) => _userRepository.GetById(id);
@@ -57,9 +67,22 @@ public class UserService : IDisposable
         => _userRepository.Where(p => p.MicrosoftUID == microsoftUID).SingleOrDefault()
             ?? throw new EntityNotFoundException($"Entity with MicrosoftUID: {microsoftUID} was not found.");
 
+    /// <summary>
+    /// Get User by GithubUID
+    /// </summary>
+    /// <param name="microsoftUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    internal User GetUserByDiscordUID(string discordUID)
+        => _userRepository.Where(p => p.DiscordUID == discordUID).SingleOrDefault()
+            ?? throw new EntityNotFoundException($"Entity with DiscordUID: {discordUID} was not found.");
+
+
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
-        string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
+        string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
+                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Name)
+                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.GivenName);
         string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user;
@@ -72,13 +95,16 @@ public class UserService : IDisposable
             user = MigrateUser(claimsPrincipal);
         }
 
-        string? userEmail = user?.Email ?? claimsPrincipal.Identity?.Name;
+        string? userEmail = user?.Email
+                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Email)
+                            ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
         // First user
         int UserCount = _userRepository.All().Count();
-        if (UserCount == 0
-            || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true)
+        if (null == user
+            && (UserCount == 0
+                || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true))
         {
             user = new User()
             {
@@ -103,8 +129,11 @@ public class UserService : IDisposable
                 case "aad":
                     user.MicrosoftUID = uid;
                     break;
+                case "discord":
+                    user.DiscordUID = uid;
+                    break;
                 default:
-                    Logger.Error("Authentication Type {authType} is not support!!", authType);
+                    _logger.Error("Authentication Type {authType} is not support!!", authType);
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
 
@@ -124,7 +153,7 @@ public class UserService : IDisposable
             _userRepository.Update(user);
         }
 
-        _privateUnitOfWork.Commit();
+        _unitOfWork_Private.Commit();
     }
 
     /// <summary>
@@ -159,7 +188,7 @@ public class UserService : IDisposable
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
         var entry = _userRepository.Update(user);
-        _privateUnitOfWork.Commit();
+        _unitOfWork_Private.Commit();
         return entry.Entity;
 
         static bool ValidateEmail(string email_string)
@@ -176,13 +205,13 @@ public class UserService : IDisposable
     /// </summary>
     /// <param name="principal"></param>
     /// <exception cref="InvalidOperationException"></exception>
-    internal static string? GetUID(ClaimsPrincipal principal)
+    internal string? GetUID(ClaimsPrincipal principal)
     {
         var uid = principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
         if (string.IsNullOrEmpty(uid))
         {
             Helper.Log.LogClaimsPrincipal(principal);
-            Logger.Error("UID is null!");
+            _logger.Error("UID is null!");
         }
         return uid;
     }
@@ -208,8 +237,10 @@ public class UserService : IDisposable
                 return GetUserByGithubUID(uid!);
             case "aad":
                 return GetUserByMicrosoftUID(uid!);
+            case "discord":
+                return GetUserByDiscordUID(uid!);
             default:
-                Logger.Error("Authentication Type {authType} is not support!!", authType);
+                _logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
         }
     }
@@ -221,50 +252,72 @@ public class UserService : IDisposable
 
         if (null == principal.Identity.Name) return null;
 
-        var user = _userRepository.Where(p => p.Email.Contains(principal.Identity.Name)).SingleOrDefault();
+        var user = _userRepository.Where(p => p.Email == principal.FindFirstValue(ClaimTypes.Email)).SingleOrDefault()
+                    ?? _userRepository.Where(p => p.Email.Contains(principal.Identity.Name)).SingleOrDefault();
         if (null != user)
         {
             switch (authType)
             {
                 case "google":
-                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
                     user.GoogleUID = uid;
                     break;
                 case "github":
-                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
                     user.GithubUID = uid;
                     break;
                 case "aad":
-                    Logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
                     user.MicrosoftUID = uid;
                     break;
+                case "discord":
+                    _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.MicrosoftUID, uid);
+                    user.DiscordUID = uid;
+                    break;
                 default:
-                    Logger.Error("Authentication Type {authType} is not support!!", authType);
+                    _logger.Error("Authentication Type {authType} is not support!!", authType);
                     throw new NotSupportedException($"Authentication Type {authType} is not support!!");
             }
         }
         return user;
     }
 
-    #region Dispose
-    protected virtual void Dispose(bool disposing)
+    public Task<User?> AuthAndGetUserAsync(IHeaderDictionary headers)
     {
-        if (!_disposedValue)
-        {
-            if (disposing)
-            {
-                _privateUnitOfWork.Dispose();
-            }
+        if (!headers.TryGetValue("Authorization", out var authHeader)
+            || authHeader.Count == 0) return Task.FromResult<User?>(null);
+        var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+        return AuthAndGetUserAsync(token);
+    }
 
-            _disposedValue = true;
+    public async Task<User?> AuthAndGetUserAsync(string token)
+        => AuthAndGetUser(await _authenticationService.GetUserInfoFromTokenAsync(token));
+
+    public User? AuthAndGetUser(ClaimsPrincipal principal)
+    {
+#if DEBUG
+        Helper.Log.LogClaimsPrincipal(principal);
+#endif
+
+        try
+        {
+            return null != principal
+                && null != principal.Identity
+                && principal.Identity.IsAuthenticated
+                ? GetUserFromClaimsPrincipal(principal)
+                : null;
+        }
+        catch (Exception e)
+        {
+            if (e is NotSupportedException or EntityNotFoundException)
+            {
+                _logger.Error(e, "User not found!!");
+                return null;
+            }
+            else
+            {
+                throw;
+            }
         }
     }
-
-    public void Dispose()
-    {
-        // 請勿變更此程式碼。請將清除程式碼放入 'Dispose(bool disposing)' 方法
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-    #endregion
 }
