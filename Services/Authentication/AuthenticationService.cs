@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LivestreamRecorderBackend.Interfaces;
+using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -6,9 +7,9 @@ namespace LivestreamRecorderBackend.Services.Authentication;
 
 public class AuthenticationService
 {
-    private readonly GoogleService _googleService;
-    private readonly GithubService _githubService;
-    private readonly MicrosoftService _microsoftService;
+    private readonly IAuthenticationHandlerService _googleService;
+    private readonly IAuthenticationHandlerService _githubService;
+    private readonly IAuthenticationHandlerService _microsoftService;
 
     public AuthenticationService(
         GoogleService googleService,

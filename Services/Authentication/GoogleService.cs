@@ -1,8 +1,5 @@
-﻿using Google.Apis.Auth.OAuth2;
-using Google.Apis.Auth.OAuth2.Requests;
-using Google.Apis.Auth.OAuth2.Responses;
+﻿using LivestreamRecorderBackend.Interfaces;
 using Microsoft.AspNetCore.Authentication;
-using System;
 using System.Net.Http;
 using System.Security.Claims;
 using System.Text;
@@ -11,42 +8,15 @@ using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services.Authentication;
 
-public class GoogleService
+public class GoogleService : IAuthenticationHandlerService
+
 {
     private readonly HttpClient _httpClient;
-
-    //private static string ClientId { get; } = Environment.GetEnvironmentVariable("GOOGLE_PROVIDER_AUTHENTICATION_ID")!;
-    //private static string ClientSecret { get; } = Environment.GetEnvironmentVariable("GOOGLE_PROVIDER_AUTHENTICATION_SECRET")!;
-
     public GoogleService(
         IHttpClientFactory httpClientFactory)
     {
         _httpClient = httpClientFactory.CreateClient("client");
     }
-
-    ///// <summary>
-    ///// Request access token with authorization code.
-    ///// </summary>
-    ///// <param name="authorization_code"></param>
-    ///// <returns></returns>
-    //public async Task<string> GetIdTokenAsync(string authorization_code, string redirectUri)
-    //{
-    //    AuthorizationCodeTokenRequest request = new()
-    //    {
-    //        Code = authorization_code,
-    //        RedirectUri = redirectUri,
-    //        ClientId = ClientId,
-    //        ClientSecret = ClientSecret,
-    //        Scope = "openid profile email"
-    //    };
-
-    //    TokenResponse response = await request.ExecuteAsync(_httpClient,
-    //                                                        GoogleAuthConsts.OidcTokenUrl,
-    //                                                        new(),
-    //                                                        Google.Apis.Util.SystemClock.Default);
-
-    //    return response.IdToken;
-    //}
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {

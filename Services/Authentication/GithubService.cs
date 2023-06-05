@@ -1,38 +1,31 @@
-﻿using Azure.Core;
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Auth.OAuth2.Requests;
-using Google.Apis.Auth.OAuth2.Responses;
+﻿using LivestreamRecorderBackend.Interfaces;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Identity;
-using OAuth2.Client;
 using OAuth2.Client.Impl;
 using OAuth2.Infrastructure;
-using OAuth2.Models;
 using System;
-using System.Collections.Specialized;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
-using System.Security.Policy;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services.Authentication;
 
-public class GithubService
+public class GithubService : IAuthenticationCodeHandlerService, IAuthenticationHandlerService
 {
     private readonly HttpClient _httpClient;
 
-    private static string ClientId { get; } = Environment.GetEnvironmentVariable("GITHUB_PROVIDER_AUTHENTICATION_ID")!;
-    private static string ClientSecret { get; } = Environment.GetEnvironmentVariable("GITHUB_PROVIDER_AUTHENTICATION_SECRET")!;
+    public string ClientId { get; } = Environment.GetEnvironmentVariable("GITHUB_PROVIDER_AUTHENTICATION_ID")!;
+    public string ClientSecret { get; } = Environment.GetEnvironmentVariable("GITHUB_PROVIDER_AUTHENTICATION_SECRET")!;
 
     public GithubService(
         IHttpClientFactory httpClientFactory)
     {
         _httpClient = httpClientFactory.CreateClient("client");
+
+        // Note: Github requires this header (and User-Agent header) to be set.
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
     }
 
@@ -52,7 +45,7 @@ public class GithubService
                  Scope = "user:email"
              });
 
-        var token = await githubClient.GetTokenAsync(new() { { "code", authorization_code} });
+        var token = await githubClient.GetTokenAsync(new() { { "code", authorization_code } });
 
         return token;
     }

@@ -1,3 +1,4 @@
+using LivestreamRecorderBackend.Interfaces;
 using LivestreamRecorderBackend.Services.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -17,7 +18,7 @@ public class Authentication
 {
     private static ILogger Logger => Helper.Log.Logger;
     private readonly string _frontEndUri;
-    private readonly GithubService _githubService;
+    private readonly IAuthenticationCodeHandlerService _githubService;
 
     public Authentication(GithubService githubService)
     {
@@ -51,8 +52,11 @@ public class Authentication
             throw new Exception(error);
         }
 
-        string idToken = await _githubService.GetIdTokenAsync(authorization_code: code,
-                                                              redirectUri: AuthenticationService.GetRedirectUri(req.GetDisplayUrl(), "api/signin-github"));
+        string idToken = await _githubService.GetIdTokenAsync(
+            authorization_code: code,
+            redirectUri: AuthenticationService.GetRedirectUri(req.GetDisplayUrl(), "api/signin-github"));
+
+        // Treat it as an implicit flow-style URL so that my front-end can easily handle it with packages (angular-oauth2-oidc).
         return new RedirectResult($"{_frontEndUri}/pages/login-redirect?issuer=https%3A%2F%2Fgithub.com#state={state}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
     }
 }
