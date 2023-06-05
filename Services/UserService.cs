@@ -18,7 +18,7 @@ namespace LivestreamRecorderBackend.Services;
 public class UserService
 {
     private readonly IUnitOfWork _unitOfWork_Private;
-    private readonly GoogleService _googleService;
+    private readonly AuthenticationService _authenticationService;
     private readonly IUserRepository _userRepository;
     private readonly ILogger _logger;
 
@@ -26,12 +26,12 @@ public class UserService
         ILogger logger,
         IUserRepository userRepository,
         UnitOfWork_Private unitOfWork_Private,
-        GoogleService googleService)
+        AuthenticationService authenticationService)
     {
         _logger = logger;
         _userRepository = userRepository;
         _unitOfWork_Private = unitOfWork_Private;
-        _googleService = googleService;
+        _authenticationService = authenticationService;
     }
 
     internal User GetUserById(string id) => _userRepository.GetById(id);
@@ -69,7 +69,9 @@ public class UserService
 
     internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
     {
-        string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
+        string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
+                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Name)
+                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.GivenName);
         string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user;
@@ -82,7 +84,9 @@ public class UserService
             user = MigrateUser(claimsPrincipal);
         }
 
-        string? userEmail = user?.Email ?? claimsPrincipal.Identity?.Name;
+        string? userEmail = user?.Email
+                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Email)
+                            ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
         // First user
@@ -257,16 +261,16 @@ public class UserService
         return user;
     }
 
-    public async Task<User?> AuthAndGetUserAsync(IHeaderDictionary headers)
+    public Task<User?> AuthAndGetUserAsync(IHeaderDictionary headers)
     {
         if (!headers.TryGetValue("Authorization", out var authHeader)
-            || authHeader.Count == 0) return null;
+            || authHeader.Count == 0) return Task.FromResult<User?>(null);
         var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
-        return AuthAndGetUser(await _googleService.GetUserInfoFromTokenAsync(token));
+        return AuthAndGetUserAsync(token);
     }
 
     public async Task<User?> AuthAndGetUserAsync(string token)
-        => AuthAndGetUser(await _googleService.GetUserInfoFromTokenAsync(token));
+        => AuthAndGetUser(await _authenticationService.GetUserInfoFromTokenAsync(token));
 
     public User? AuthAndGetUser(ClaimsPrincipal principal)
     {

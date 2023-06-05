@@ -35,7 +35,7 @@ public class ChannelService
         _channelRepository = channelRepository;
         _unitOfWork_Public = unitOfWork_Public;
         _fC2Service = fC2Service;
-        _httpClient = httpClientFactory.CreateClient();
+        _httpClient = httpClientFactory.CreateClient("client");
         _logger = logger;
         _aBSservice = aBSservice;
     }

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Net.Http.Headers;
 
 [assembly: FunctionsStartup(typeof(LivestreamRecorderBackend.Startup))]
 
@@ -17,7 +18,12 @@ namespace LivestreamRecorderBackend
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddHttpClient();
+            builder.Services.AddHttpClient("client",config =>
+            {
+                config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(".NET", "6.0"));
+                config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Recorder.moe", "1.0"));
+                config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(+https://recorder.moe)"));
+            });
             builder.Services.AddSingleton(Helper.Log.MakeLogger());
 
             #region CosmosDB
@@ -54,7 +60,10 @@ namespace LivestreamRecorderBackend
             builder.Services.AddScoped<VideoService>();
             builder.Services.AddScoped<FC2Service>();
 
+            builder.Services.AddScoped<AuthenticationService>();
             builder.Services.AddScoped<GoogleService>();
+            builder.Services.AddScoped<GithubService>();
+            builder.Services.AddScoped<MicrosoftService>();
         }
     }
 }

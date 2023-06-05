@@ -16,6 +16,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -25,16 +26,16 @@ public class User
 {
     private readonly ILogger _logger;
     private readonly UserService _userService;
-    private readonly GoogleService _googleService;
+    private readonly AuthenticationService _authenticationService;
 
     public User(
         ILogger logger,
         UserService userService,
-        GoogleService googleService)
+        AuthenticationService authenticationService)
     {
         _logger = logger;
         _userService = userService;
-        _googleService = googleService;
+        _authenticationService = authenticationService;
     }
 
     [FunctionName(nameof(GetUserAsync))]
@@ -76,7 +77,7 @@ public class User
             if (!req.Headers.TryGetValue("Authorization", out var authHeader)
                 || authHeader.Count == 0) return new UnauthorizedResult();
             var idToken = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
-            var principal = await _googleService.GetUserInfoFromTokenAsync(idToken);
+            var principal = await _authenticationService.GetUserInfoFromTokenAsync(idToken);
 
             if (null == principal
                 || null == principal.Identity

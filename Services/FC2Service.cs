@@ -20,7 +20,7 @@ public class FC2Service
         IHttpClientFactory httpClientFactory,
         ILogger logger)
     {
-        _httpClient = httpClientFactory.CreateClient();
+        _httpClient = httpClientFactory.CreateClient("client");
         _logger = logger;
     }
 
