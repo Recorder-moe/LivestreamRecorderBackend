@@ -16,7 +16,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -76,8 +75,8 @@ public class User
         {
             if (!req.Headers.TryGetValue("Authorization", out var authHeader)
                 || authHeader.Count == 0) return new UnauthorizedResult();
-            var idToken = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
-            var principal = await _authenticationService.GetUserInfoFromTokenAsync(idToken);
+            var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+            var principal = await _authenticationService.GetUserInfoFromTokenAsync(token);
 
             if (null == principal
                 || null == principal.Identity
