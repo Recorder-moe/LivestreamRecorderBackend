@@ -1,1 +1,17 @@
 local.settings.json
+**/.git
+Dockerfile*
+docker-compose*
+.dockerignore
+.git
+.gitignore
+.vscode
+.github
+node_modules
+dist
+.env
+azure-pipelines.yml
+*.md
+bin
+obj
+.vs
