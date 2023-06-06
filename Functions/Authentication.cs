@@ -12,6 +12,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace LivestreamRecorderBackend.Functions;
 
@@ -60,7 +61,7 @@ public class Authentication
             redirectUri: AuthenticationService.GetRedirectUri(backEnd, "api/signin-github"));
 
         // Treat it as an implicit flow-style URL so that my front-end can easily handle it with packages (angular-oauth2-oidc).
-        return new RedirectResult($"{_frontEndUri}/pages/login-redirect?issuer=https%3A%2F%2Fgithub.com#state={state}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
+        return new RedirectResult($"{_frontEndUri}/pages/login-redirect#state={HttpUtility.UrlEncode(state)}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
     }
 }
 
