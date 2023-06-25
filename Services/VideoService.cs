@@ -1,5 +1,5 @@
 ﻿using LivestreamRecorder.DB.Core;
-using LivestreamRecorder.DB.Enum;
+using LivestreamRecorder.DB.Enums;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.Video;
@@ -100,8 +100,8 @@ public class VideoService
     internal void UpdateVideo(Video video, UpdateVideoRequest updateVideoRequest)
     {
         var v = _videoRepository.GetById(video.id);
-        if (null != updateVideoRequest.Status) v.Status = updateVideoRequest.Status.Value;
-        if (null != updateVideoRequest.SourceStatus) v.SourceStatus = updateVideoRequest.SourceStatus.Value;
+        if (updateVideoRequest.Status.HasValue) v.Status = updateVideoRequest.Status.Value;
+        if (updateVideoRequest.SourceStatus.HasValue) v.SourceStatus = updateVideoRequest.SourceStatus.Value;
         if (null != updateVideoRequest.Note) v.Note = updateVideoRequest.Note;
         _videoRepository.Update(v);
         _unitOfWork_Public.Commit();
