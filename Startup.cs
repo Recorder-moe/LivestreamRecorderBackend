@@ -25,6 +25,7 @@ namespace LivestreamRecorderBackend
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(+https://recorder.moe)"));
             });
             builder.Services.AddSingleton(Helper.Log.MakeLogger());
+            builder.Services.AddMemoryCache(option => option.SizeLimit = 1024);
 
             #region CosmosDB
             builder.Services.AddDbContext<PublicContext>(options =>

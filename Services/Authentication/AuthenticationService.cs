@@ -1,4 +1,5 @@
 ﻿using LivestreamRecorderBackend.Interfaces;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -11,41 +12,66 @@ public class AuthenticationService
     private readonly IAuthenticationHandlerService _githubService;
     private readonly IAuthenticationHandlerService _microsoftService;
     private readonly IAuthenticationHandlerService _discordService;
+    private readonly IMemoryCache _memoryCache;
 
     public AuthenticationService(
         GoogleService googleService,
         GithubService githubService,
         MicrosoftService microsoftService,
-        DiscordService discordService)
+        DiscordService discordService,
+        IMemoryCache memoryCache)
     {
         _googleService = googleService;
         _githubService = githubService;
         _microsoftService = microsoftService;
         _discordService = discordService;
+        _memoryCache = memoryCache;
     }
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
+        var cached = _memoryCache.Get<ClaimsPrincipal>(token);
+        if (null != cached) return cached;
+
+        ClaimsPrincipal? result = null;
         try
         {
-            return await _googleService.GetUserInfoFromTokenAsync(token);
+            try
+            {
+                result = await _googleService.GetUserInfoFromTokenAsync(token);
+                return result;
+            }
+            catch (Exception) { }
+            try
+            {
+                result = await _githubService.GetUserInfoFromTokenAsync(token);
+                return result;
+            }
+            catch (Exception) { }
+            try
+            {
+                result = await _microsoftService.GetUserInfoFromTokenAsync(token);
+                return result;
+            }
+            catch (Exception) { }
+            try
+            {
+                result = await _discordService.GetUserInfoFromTokenAsync(token);
+                return result;
+            }
+            catch (Exception) { }
         }
-        catch (Exception) { }
-        try
+        finally
         {
-            return await _githubService.GetUserInfoFromTokenAsync(token);
+            if (null != result)
+            {
+                _memoryCache.Set(token, result, new MemoryCacheEntryOptions()
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
+                    Size = 1
+                });
+            }
         }
-        catch (Exception) { }
-        try
-        {
-            return await _microsoftService.GetUserInfoFromTokenAsync(token);
-        }
-        catch (Exception) { }
-        try
-        {
-            return await _discordService.GetUserInfoFromTokenAsync(token);
-        }
-        catch (Exception) { }
 
         throw new InvalidOperationException("Token not support");
     }
