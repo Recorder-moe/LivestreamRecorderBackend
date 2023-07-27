@@ -7,5 +7,6 @@
     "cSpell.words": [
         "Livestream",
         "livestreamrecorderbackend"
-    ]
+    ],
+    "dotnet.defaultSolution": "LivestreamRecorderBackend.sln"
 }
