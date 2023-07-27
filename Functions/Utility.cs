@@ -27,7 +27,7 @@ public class Utility
         return new OkResult();
     }
 
-#if !DEBUG
+#if !DEBUG && Windows
     [FunctionName(nameof(WakeByTimer))]
     public void WakeByTimer([TimerTrigger("0 * * * * *")] TimerInfo timerInfo)
         => Wake();
