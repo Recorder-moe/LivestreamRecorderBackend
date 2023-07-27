@@ -5,9 +5,14 @@ RUN cd /src/dotnet-function-app && \
     mkdir -p /home/site/wwwroot && \
     dotnet publish *.csproj --output /home/site/wwwroot --configuration Release
 
-# To enable ssh & remote debugging on app service change the base image to the one below
-# FROM mcr.microsoft.com/azure-functions/dotnet:4-appservice
 FROM mcr.microsoft.com/azure-functions/dotnet:4
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-distutils python3-pip build-essential ffmpeg aria2 && \
+    pip install --upgrade yt-dlp mutagen pycryptodomex websockets brotli certifi && \
+    apt-get remove --purge -y build-essential python3-dev python3-distutils python3-pip && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 EXPOSE 80
 

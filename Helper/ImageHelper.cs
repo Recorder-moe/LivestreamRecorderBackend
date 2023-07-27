@@ -1,6 +1,7 @@
 ﻿using Serilog;
 using System.Configuration;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Xabe.FFmpeg;
 
@@ -11,7 +12,9 @@ public static class ImageHelper
     private static ILogger Logger => Helper.Log.Logger;
     public static async Task<string> ConvertToAvifAsync(string path)
     {
-        string _ffmpegPath = "./ffmpeg.exe";
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var extension = isWindows ? ".exe" : "";
+        string _ffmpegPath = "./ffmpeg" + extension;
 
         if (File.Exists(_ffmpegPath))
         {
@@ -23,7 +26,7 @@ public static class ImageHelper
             _ffmpegPath = FFmpegPath ?? throw new ConfigurationErrorsException("FFmpeg is missing.");
         }
 
-        FFmpeg.SetExecutablesPath(Path.GetDirectoryName(_ffmpegPath), "ffmpeg.exe", "ffprobe.exe");
+        FFmpeg.SetExecutablesPath(Path.GetDirectoryName(_ffmpegPath), "ffmpeg" + extension, "ffprobe" + extension);
 
         IMediaInfo mediaInfo = await FFmpeg.GetMediaInfo(path);
         var outputPath = Path.ChangeExtension(path, ".avif");
