@@ -5,7 +5,9 @@
     "debug.internalConsoleOptions": "neverOpen",
     "azureFunctions.preDeployTask": "publish (functions)",
     "cSpell.words": [
+        "ffprobe",
         "Livestream",
         "livestreamrecorderbackend"
-    ]
+    ],
+    "dotnet.defaultSolution": "LivestreamRecorderBackend.sln"
 }

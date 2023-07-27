@@ -80,20 +80,20 @@ internal static partial class YoutubeDL
     /// <exception cref="BadImageFormatException" >The function is only works in windows.</exception>
     public static (string? YtdlPath, string? FFmpegPath) WhereIs()
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            throw new BadImageFormatException("The WhereIs yt-dlp, ffmpeg method is olny works in Windows!");
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var pathSeparator = isWindows ? ';' : ':';
 
         DirectoryInfo TempDirectory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), nameof(LivestreamRecorderBackend)));
 
         // https://stackoverflow.com/a/63021455
-        string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(';') ?? Array.Empty<string>();
-        string[] extensions = Environment.GetEnvironmentVariable("PATHEXT")?.Split(';') ?? Array.Empty<string>();
+        string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(pathSeparator) ?? Array.Empty<string>();
+        string[] extensions = Environment.GetEnvironmentVariable("PATHEXT")?.Split(pathSeparator) ?? new string[] { string.Empty };
 
         string? _YtdlpPath = (from p in new[]
                                 {
                                     Environment.CurrentDirectory,
                                     TempDirectory.FullName,
-                                    @"C:\home\site\wwwroot"
+                                    isWindows ? @"C:\home\site\wwwroot" : "/home/site/wwwroot"
                                 }.Concat(paths)
                               from e in extensions
                               let path = Path.Combine(p.Trim(), "yt-dlp" + e.ToLower())
@@ -103,7 +103,7 @@ internal static partial class YoutubeDL
                                 {
                                     Environment.CurrentDirectory,
                                     TempDirectory.FullName,
-                                    @"C:\home\site\wwwroot"
+                                    isWindows ? @"C:\home\site\wwwroot" : "/home/site/wwwroot"
                                 }.Concat(paths)
                                from e in extensions
                                let path = Path.Combine(p.Trim(), "ffmpeg" + e.ToLower())
@@ -112,20 +112,20 @@ internal static partial class YoutubeDL
 
         if (string.IsNullOrEmpty(_YtdlpPath))
         {
-            Logger.Fatal("Cannot found yt-dlp.exe");
+            Logger.Fatal("Cannot found yt-dlp");
         }
         else
         {
-            Logger.Debug("Found yt-dlp.exe at {YtdlpPath}", _YtdlpPath);
+            Logger.Debug("Found yt-dlp at {YtdlpPath}", _YtdlpPath);
         }
 
         if (string.IsNullOrEmpty(_FFmpegPath))
         {
-            Logger.Fatal("Cannot found ffmpeg.exe");
+            Logger.Fatal("Cannot found ffmpeg");
         }
         else
         {
-            Logger.Debug("Found ffmpeg.exe at {FFmpegPath}", _FFmpegPath);
+            Logger.Debug("Found ffmpeg at {FFmpegPath}", _FFmpegPath);
         }
 
         return (_YtdlpPath, _FFmpegPath);
@@ -133,8 +133,10 @@ internal static partial class YoutubeDL
 
     public static async Task<YtdlpVideoData?> GetInfoByYtdlpAsync(string url, CancellationToken cancellation = default)
     {
-        string _ytdlPath = "./yt-dlp.exe";
-        string _ffmpegPath = "./ffmpeg.exe";
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var extension = isWindows ? ".exe" : "";
+        string _ytdlPath = "./yt-dlp" + extension;
+        string _ffmpegPath = "./ffmpeg" + extension;
 
         if (File.Exists(_ytdlPath) && File.Exists(_ffmpegPath))
         {
