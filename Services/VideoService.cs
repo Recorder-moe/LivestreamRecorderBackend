@@ -3,6 +3,7 @@ using LivestreamRecorder.DB.Enums;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.Video;
+using LivestreamRecorderBackend.Interfaces;
 using Serilog;
 using System;
 using System.Threading.Tasks;
@@ -14,16 +15,16 @@ public class VideoService
     private readonly IUnitOfWork _unitOfWork_Public;
     private readonly IVideoRepository _videoRepository;
     private readonly ILogger _logger;
-    private readonly ABSService _aBSservice;
+    private readonly IStorageService _storageService;
 
     public VideoService(
         ILogger logger,
-        ABSService aBSservice,
+        IStorageService storageService,
         IVideoRepository videoRepository,
         UnitOfWork_Public unitOfWork_Public)
     {
         _logger = logger;
-        _aBSservice = aBSservice;
+        _storageService = storageService;
         _videoRepository = videoRepository;
         _unitOfWork_Public = unitOfWork_Public;
     }
@@ -107,29 +108,20 @@ public class VideoService
         _unitOfWork_Public.Commit();
     }
 
-    internal void RemoveVideo(Video video)
+    internal async Task RemoveVideoAsync(Video video)
     {
         video.Status = VideoStatus.Deleted;
         _videoRepository.Update(video);
         _unitOfWork_Public.Commit();
-        var blobClient = _aBSservice.GetVideoBlob(video);
-        blobClient.DeleteIfExists();
+        if (null != video.Filename)
+            await _storageService.DeleteVideoBlob(video.Filename);
     }
 
     /// <summary>
-    /// Get SAS token for video.
+    /// Get token for video.
     /// </summary>
     /// <param name="videoId"></param>
-    /// <param name="blobContainerClient"></param>
-    /// <returns>SAS uri</returns>
-    internal async Task<string?> GetSASTokenAsync(string videoId)
-    {
-        var video = GetVideoById(videoId);
-        var blobClient = _aBSservice.GetVideoBlob(video);
-        return null != blobClient
-                   && await blobClient.ExistsAsync()
-                   && blobClient.CanGenerateSasUri
-               ? blobClient.GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12)).Query
-               : null;
-    }
+    /// <returns>token</returns>
+    internal Task<string> GetToken(string videoId)
+        => _storageService.GetToken(GetVideoById(videoId));
 }

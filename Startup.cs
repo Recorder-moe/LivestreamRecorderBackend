@@ -1,13 +1,18 @@
 ﻿using Azure.Identity;
 using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Interfaces;
+using LivestreamRecorderBackend.Interfaces;
 using LivestreamRecorderBackend.Services;
 using LivestreamRecorderBackend.Services.Authentication;
+using LivestreamRecorderBackend.Services.StorageService;
+using LivestreamRecorderBackend.SingletonServices;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
 using System;
+using System.Configuration;
 using System.Net.Http.Headers;
 
 [assembly: FunctionsStartup(typeof(LivestreamRecorderBackend.Startup))]
@@ -18,7 +23,7 @@ namespace LivestreamRecorderBackend
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddHttpClient("client",config =>
+            builder.Services.AddHttpClient("client", config =>
             {
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(".NET", "6.0"));
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Recorder.moe", "1.0"));
@@ -48,13 +53,50 @@ namespace LivestreamRecorderBackend
             builder.Services.AddScoped<IUserRepository, UserRepository>();
             #endregion
 
-            builder.Services.AddAzureClients(clientsBuilder =>
+            #region Storage
+            if (Environment.GetEnvironmentVariable("StorageService") == "AzureBlobStorage")
             {
-                clientsBuilder.UseCredential(new DefaultAzureCredential())
-                              .AddBlobServiceClient(Environment.GetEnvironmentVariable("Blob_ConnectionString"));
-            });
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Blob_ConnectionString"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Blob_ContainerNamePrivate"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Blob_ContainerNamePublic")))
+                {
+                    throw new ConfigurationErrorsException("Invalid ENV for BlobStorage. Please set Blob_ConnectionString, Blob_ContainerNamePrivate, Blob_ContainerNamePublic");
+                }
 
-            builder.Services.AddSingleton<ABSService>();
+                builder.Services.AddAzureClients(clientsBuilder =>
+                {
+                    clientsBuilder.UseCredential(new DefaultAzureCredential())
+                                  .AddBlobServiceClient(Environment.GetEnvironmentVariable("Blob_ConnectionString"));
+                });
+
+                builder.Services.AddSingleton<IStorageService, ABSService>();
+            }
+            else if (Environment.GetEnvironmentVariable("StorageService") == "S3")
+            {
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_Endpoint"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_AccessKey"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_SecretKey"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_Secure"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_BucketNamePrivate"))
+                    || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_BucketNamePublic")))
+                {
+                    throw new ConfigurationErrorsException("Invalid ENV for S3. Please set S3_Endpoint, S3_AccessKey, S3_SecretKey, S3_Secure, S3_BucketNamePrivate, S3_BucketNamePublic");
+                }
+
+                MinioClient minio = new MinioClient()
+                            .WithEndpoint(Environment.GetEnvironmentVariable("S3_Endpoint"))
+                            .WithCredentials(Environment.GetEnvironmentVariable("S3_AccessKey"), Environment.GetEnvironmentVariable("S3_SecretKey"))
+                            .WithSSL(bool.Parse(Environment.GetEnvironmentVariable("S3_Secure") ?? "false"))
+                            .Build();
+
+                builder.Services.AddSingleton<IMinioClient>(minio);
+                builder.Services.AddSingleton<IStorageService, S3Service>();
+            }
+            else
+            {
+                throw new ConfigurationErrorsException("Invalid ENV StorageService. Should be AzureBlobStorage or S3.");
+            }
+            #endregion
 
             builder.Services.AddScoped<ChannelService>();
             builder.Services.AddScoped<UserService>();

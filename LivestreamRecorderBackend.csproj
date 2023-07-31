@@ -17,34 +17,35 @@
     <DefineConstants>Linux</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="LivestreamRecorder.DB\**"/>
-    <EmbeddedResource Remove="LivestreamRecorder.DB\**"/>
-    <None Remove="LivestreamRecorder.DB\**"/>
+    <Compile Remove="LivestreamRecorder.DB\**" />
+    <EmbeddedResource Remove="LivestreamRecorder.DB\**" />
+    <None Remove="LivestreamRecorder.DB\**" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Google.Apis.Auth" Version="1.60.0"/>
-    <PackageReference Include="Gravatar-t5" Version="1.0.2"/>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.16"/>
-    <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0"/>
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.DurableTask" Version="2.9.5"/>
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.OpenApi" Version="1.5.1"/>
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="5.1.2"/>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1"/>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.1"/>
-    <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0"/>
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.2.0"/>
-    <PackageReference Include="MimeMapping" Version="2.0.0"/>
-    <PackageReference Include="OAuth2" Version="0.10.3"/>
-    <PackageReference Include="Serilog" Version="2.12.0"/>
-    <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0"/>
-    <PackageReference Include="Serilog.Sinks.Seq" Version="5.2.2"/>
-    <PackageReference Include="ValueInjecter" Version="3.2.0"/>
-    <PackageReference Include="Xabe.FFmpeg" Version="5.2.6"/>
-    <PackageReference Include="YoutubeDLSharp" Version="0.4.3"/>
-    <PackageReference Include="Serilog.Enrichers.Environment" Version="2.2.0"/>
+    <PackageReference Include="Google.Apis.Auth" Version="1.60.0" />
+    <PackageReference Include="Gravatar-t5" Version="1.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.16" />
+    <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.DurableTask" Version="2.9.5" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.OpenApi" Version="1.5.1" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="5.1.2" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.2.0" />
+    <PackageReference Include="MimeMapping" Version="2.0.0" />
+    <PackageReference Include="Minio" Version="5.0.0" />
+    <PackageReference Include="OAuth2" Version="0.10.3" />
+    <PackageReference Include="Serilog" Version="2.12.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="5.2.2" />
+    <PackageReference Include="ValueInjecter" Version="3.2.0" />
+    <PackageReference Include="Xabe.FFmpeg" Version="5.2.6" />
+    <PackageReference Include="YoutubeDLSharp" Version="0.4.3" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="2.2.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="LivestreamRecorder.DB\LivestreamRecorder.DB.csproj"/>
+    <ProjectReference Include="LivestreamRecorder.DB\LivestreamRecorder.DB.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(IsWindows)'=='true'">
     <None Update="ffmpeg.exe">
