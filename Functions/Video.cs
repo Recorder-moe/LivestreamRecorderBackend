@@ -159,7 +159,7 @@ public class Video
                 return new BadRequestObjectResult("Video not found.");
             }
 
-            _videoService.RemoveVideo(video);
+            await _videoService.RemoveVideoAsync(video);
             return new OkResult();
         }
         catch (Exception e)
@@ -179,12 +179,12 @@ public class Video
         }
     }
 
-    [FunctionName(nameof(GetSASToken))]
-    [OpenApiOperation(operationId: nameof(GetSASToken), tags: new[] { nameof(Video) })]
+    [FunctionName(nameof(GetToken))]
+    [OpenApiOperation(operationId: nameof(GetToken), tags: new[] { nameof(Video) })]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
-    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The SAS Token.")]
-    public async Task<IActionResult> GetSASToken(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/SASToken")] HttpRequest req)
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The Token.")]
+    public async Task<IActionResult> GetToken(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/Token")] HttpRequest req)
     {
         try
         {
@@ -198,20 +198,20 @@ public class Video
             if (string.IsNullOrEmpty(videoId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            string? sASToken = await _videoService.GetSASTokenAsync(videoId);
-            if (string.IsNullOrEmpty(sASToken))
+            string token = await _videoService.GetToken(videoId);
+            if (string.IsNullOrEmpty(token))
             {
-                _logger.Warning("The video {videoId} download by user {userId} failed when generating SASToken.", videoId, user.id);
-                return new BadRequestObjectResult("Failed to generate SASToken.");
+                _logger.Warning("The video {videoId} download by user {userId} failed when generating Token.", videoId, user.id);
+                return new BadRequestObjectResult("Failed to generate Token.");
             }
 
-            _logger.Verbose("User {userId} has generated a SAS token for video {videoId}", user.id, videoId);
+            _logger.Verbose("User {userId} has generated a token for video {videoId}", user.id, videoId);
 
-            return new OkObjectResult(sASToken);
+            return new OkObjectResult(token);
         }
         catch (Exception e)
         {
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetSASToken), e);
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(GetToken), e);
             return new InternalServerErrorResult();
         }
     }

@@ -1,8 +1,8 @@
-﻿using Azure.Storage.Blobs.Models;
-using LivestreamRecorder.DB.Core;
+﻿using LivestreamRecorder.DB.Core;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Interfaces;
 using MimeMapping;
 using Serilog;
 using System;
@@ -22,11 +22,11 @@ public class ChannelService
     private readonly HttpClient _httpClient;
     private readonly IChannelRepository _channelRepository;
     private readonly ILogger _logger;
-    private readonly ABSService _aBSservice;
+    private readonly IStorageService _storageService;
 
     public ChannelService(
         ILogger logger,
-        ABSService aBSservice,
+        IStorageService storageService,
         IChannelRepository channelRepository,
         UnitOfWork_Public unitOfWork_Public,
         FC2Service fC2Service,
@@ -37,7 +37,7 @@ public class ChannelService
         _fC2Service = fC2Service;
         _httpClient = httpClientFactory.CreateClient("client");
         _logger = logger;
-        _aBSservice = aBSservice;
+        _storageService = storageService;
     }
 
     internal Channel GetChannelById(string id) => _channelRepository.GetById(id);
@@ -122,7 +122,7 @@ public class ChannelService
 
         if (!string.IsNullOrEmpty(bannerUrl) && bannerUrl.StartsWith("http"))
         {
-            bannerBlobUri = (await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation));
+            bannerBlobUri = await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation);
         }
 
         _unitOfWork_Public.Context.Entry(channel).Reload();
@@ -182,21 +182,17 @@ public class ChannelService
             await contentStream.CopyToAsync(fileStream, cancellation);
         }
 
-        List<Task> tasks = new();
-
-        var blobClient = _aBSservice.GetPublicBlob(pathInStorage)!;
-        tasks.Add(blobClient.UploadAsync(
-             path: tempPath,
-             httpHeaders: new BlobHttpHeaders { ContentType = contentType },
-             accessTier: AccessTier.Hot,
-        cancellationToken: cancellation));
-
-        var avifblobClient = _aBSservice.GetPublicBlob($"{path}.avif")!;
-        tasks.Add(avifblobClient.UploadAsync(
-             path: await ImageHelper.ConvertToAvifAsync(tempPath),
-             httpHeaders: new BlobHttpHeaders { ContentType = KnownMimeTypes.Avif },
-             accessTier: AccessTier.Hot,
-             cancellationToken: cancellation));
+        List<Task> tasks = new()
+        {
+            _storageService.UploadPublicFile(contentType: contentType,
+                                             pathInStorage: pathInStorage,
+                                             filePathToUpload: tempPath,
+                                             cancellation: cancellation),
+            _storageService.UploadPublicFile(contentType: KnownMimeTypes.Avif,
+                                             pathInStorage: $"{path}.avif",
+                                             filePathToUpload: await ImageHelper.ConvertToAvifAsync(tempPath),
+                                             cancellation: cancellation)
+        };
 
         await Task.WhenAll(tasks);
 
