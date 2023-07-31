@@ -30,7 +30,7 @@ public static class Log
     {
         Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
 
-        var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Information);
+        var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Verbose);
 
         var logger = new LoggerConfiguration()
                         .MinimumLevel.ControlledBy(levelSwitch)

@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Minio;
+using Serilog;
 using System;
 using System.Configuration;
 using System.Net.Http.Headers;
@@ -29,7 +30,8 @@ namespace LivestreamRecorderBackend
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Recorder.moe", "1.0"));
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(+https://recorder.moe)"));
             });
-            builder.Services.AddSingleton(Helper.Log.MakeLogger());
+            ILogger logger = Helper.Log.MakeLogger();
+            builder.Services.AddSingleton(logger);
             builder.Services.AddMemoryCache(option => option.SizeLimit = 1024);
 
             #region CosmosDB
@@ -60,6 +62,7 @@ namespace LivestreamRecorderBackend
                     || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Blob_ContainerNamePrivate"))
                     || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Blob_ContainerNamePublic")))
                 {
+                    logger.Fatal("Invalid ENV for BlobStorage. Please set Blob_ConnectionString, Blob_ContainerNamePrivate, Blob_ContainerNamePublic");
                     throw new ConfigurationErrorsException("Invalid ENV for BlobStorage. Please set Blob_ConnectionString, Blob_ContainerNamePrivate, Blob_ContainerNamePublic");
                 }
 
@@ -80,6 +83,7 @@ namespace LivestreamRecorderBackend
                     || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_BucketNamePrivate"))
                     || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("S3_BucketNamePublic")))
                 {
+                    logger.Fatal("Invalid ENV for S3. Please set S3_Endpoint, S3_AccessKey, S3_SecretKey, S3_Secure, S3_BucketNamePrivate, S3_BucketNamePublic");
                     throw new ConfigurationErrorsException("Invalid ENV for S3. Please set S3_Endpoint, S3_AccessKey, S3_SecretKey, S3_Secure, S3_BucketNamePrivate, S3_BucketNamePublic");
                 }
 
@@ -94,6 +98,7 @@ namespace LivestreamRecorderBackend
             }
             else
             {
+                logger.Fatal("Invalid ENV StorageService. Should be AzureBlobStorage or S3.");
                 throw new ConfigurationErrorsException("Invalid ENV StorageService. Should be AzureBlobStorage or S3.");
             }
             #endregion
