@@ -205,7 +205,7 @@ public class Video
                 return new BadRequestObjectResult("Failed to generate Token.");
             }
 
-            _logger.Verbose("User {userId} has generated a SAS token for video {videoId}", user.id, videoId);
+            _logger.Verbose("User {userId} has generated a token for video {videoId}", user.id, videoId);
 
             return new OkObjectResult(token);
         }

@@ -63,6 +63,7 @@ public class S3Service : IStorageService
             var url = await _minioClient.PresignedGetObjectAsync(new PresignedGetObjectArgs()
                                                 .WithBucket(_bucketName_Private)
                                                 .WithObject($"videos/{video.Filename}")
+                                                .WithRequestDate(DateTime.UtcNow.AddMinutes(-1))
                                                 .WithExpiry((int)TimeSpan.FromHours(12).TotalSeconds));
             return new Uri(url).Query;
         }
