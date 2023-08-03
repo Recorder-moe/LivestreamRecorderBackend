@@ -52,7 +52,7 @@ public class GithubService : IAuthenticationCodeHandlerService, IAuthenticationH
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
-        _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
+        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Bearer " + token);
         var response = await _httpClient.GetAsync("https://api.github.com/user");
         if (!response.IsSuccessStatusCode)
         {

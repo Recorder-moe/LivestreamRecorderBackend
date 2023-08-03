@@ -22,7 +22,7 @@ public class DiscordService : IAuthenticationHandlerService
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
-        _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
+        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Bearer " + token);
         var response = await _httpClient.GetAsync("https://discord.com/api/users/@me");
         if (!response.IsSuccessStatusCode)
         {
