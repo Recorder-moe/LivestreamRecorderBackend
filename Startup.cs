@@ -40,19 +40,19 @@ namespace LivestreamRecorderBackend
                 options.UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Public")!,
                                   databaseName: "Public",
                                   cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
-            });
+            }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
             builder.Services.AddDbContext<PrivateContext>(options =>
             {
                 options.UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Private")!,
                                   databaseName: "Private",
                                   cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
-            });
+            }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
 
-            builder.Services.AddScoped<UnitOfWork_Public>();
-            builder.Services.AddScoped<UnitOfWork_Private>();
-            builder.Services.AddScoped<IVideoRepository, VideoRepository>();
-            builder.Services.AddScoped<IChannelRepository, ChannelRepository>();
-            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddSingleton<UnitOfWork_Public>();
+            builder.Services.AddSingleton<UnitOfWork_Private>();
+            builder.Services.AddSingleton<IVideoRepository, VideoRepository>();
+            builder.Services.AddSingleton<IChannelRepository, ChannelRepository>();
+            builder.Services.AddSingleton<IUserRepository, UserRepository>();
             #endregion
 
             #region Storage
@@ -103,16 +103,16 @@ namespace LivestreamRecorderBackend
             }
             #endregion
 
-            builder.Services.AddScoped<ChannelService>();
-            builder.Services.AddScoped<UserService>();
-            builder.Services.AddScoped<VideoService>();
-            builder.Services.AddScoped<FC2Service>();
+            builder.Services.AddSingleton<ChannelService>();
+            builder.Services.AddSingleton<UserService>();
+            builder.Services.AddSingleton<VideoService>();
+            builder.Services.AddSingleton<FC2Service>();
 
-            builder.Services.AddScoped<AuthenticationService>();
-            builder.Services.AddScoped<GoogleService>();
-            builder.Services.AddScoped<GithubService>();
-            builder.Services.AddScoped<MicrosoftService>();
-            builder.Services.AddScoped<DiscordService>();
+            builder.Services.AddSingleton<AuthenticationService>();
+            builder.Services.AddSingleton<GoogleService>();
+            builder.Services.AddSingleton<GithubService>();
+            builder.Services.AddSingleton<MicrosoftService>();
+            builder.Services.AddSingleton<DiscordService>();
         }
     }
 }
