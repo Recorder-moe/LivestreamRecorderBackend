@@ -15,7 +15,7 @@ namespace LivestreamRecorderBackend.Services.Authentication;
 
 public class GithubService : IAuthenticationCodeHandlerService, IAuthenticationHandlerService
 {
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public string ClientId { get; } = Environment.GetEnvironmentVariable("GITHUB_PROVIDER_AUTHENTICATION_ID")!;
     public string ClientSecret { get; } = Environment.GetEnvironmentVariable("GITHUB_PROVIDER_AUTHENTICATION_SECRET")!;
@@ -23,10 +23,7 @@ public class GithubService : IAuthenticationCodeHandlerService, IAuthenticationH
     public GithubService(
         IHttpClientFactory httpClientFactory)
     {
-        _httpClient = httpClientFactory.CreateClient("client");
-
-        // Note: Github requires this header (and User-Agent header) to be set.
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <summary>
@@ -52,8 +49,12 @@ public class GithubService : IAuthenticationCodeHandlerService, IAuthenticationH
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
-        _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
-        var response = await _httpClient.GetAsync("https://api.github.com/user");
+        var httpClient = _httpClientFactory.CreateClient("client");
+
+        // Note: Github requires this header (and User-Agent header) to be set.
+        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+        httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
+        var response = await httpClient.GetAsync("https://api.github.com/user");
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"An error occurred when retrieving Github user information ({response.StatusCode}). Please check if the authentication information is correct.");
