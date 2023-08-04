@@ -7,7 +7,10 @@ RUN cd /src/dotnet-function-app && \
 
 FROM mcr.microsoft.com/azure-functions/dotnet:4
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-distutils python3-pip build-essential ffmpeg aria2 && \
+COPY --from=mwader/static-ffmpeg:6.0 /ffmpeg /usr/local/bin/
+COPY --from=mwader/static-ffmpeg:6.0 /ffprobe /usr/local/bin/
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-distutils python3-pip build-essential aria2 && \
     pip install --upgrade yt-dlp mutagen pycryptodomex websockets brotli certifi && \
     apt-get remove --purge -y build-essential python3-dev python3-distutils python3-pip && \
     apt-get autoremove -y && \
