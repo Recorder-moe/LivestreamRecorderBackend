@@ -20,7 +20,7 @@ public class GoogleService : IAuthenticationHandlerService
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Bearer " + token);
+        _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
         var response = await _httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
         if (!response.IsSuccessStatusCode)
         {
