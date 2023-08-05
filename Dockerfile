@@ -7,7 +7,10 @@ RUN cd /src/dotnet-function-app && \
 
 FROM mcr.microsoft.com/azure-functions/dotnet:4
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-distutils python3-pip build-essential ffmpeg aria2 && \
+COPY --from=mwader/static-ffmpeg:6.0 /ffmpeg /usr/local/bin/
+COPY --from=mwader/static-ffmpeg:6.0 /ffprobe /usr/local/bin/
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-distutils python3-pip build-essential aria2 && \
     pip install --upgrade yt-dlp mutagen pycryptodomex websockets brotli certifi && \
     apt-get remove --purge -y build-essential python3-dev python3-distutils python3-pip && \
     apt-get autoremove -y && \
@@ -27,11 +30,18 @@ ENV Seq_ServerUrl=
 ENV Seq_ApiKey=
 ENV ConnectionStrings_Private=
 ENV ConnectionStrings_Public=
-ENV Blob_ConnectionString=
-ENV Blob_ContainerName=
-ENV Blob_ContainerNamePublic=
 ENV Registration_allowed=true
 ENV GITHUB_PROVIDER_AUTHENTICATION_ID=
 ENV GITHUB_PROVIDER_AUTHENTICATION_SECRET=
+ENV StorageService=
+ENV Blob_ConnectionString=
+ENV Blob_ContainerName=
+ENV Blob_ContainerNamePublic=
+ENV S3_Endpoint=
+ENV S3_AccessKey=
+ENV S3_SecretKey=
+ENV S3_Secure=
+ENV S3_BucketNamePrivate=
+ENV S3_BucketNamePublic=
 
 COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]

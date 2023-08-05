@@ -15,6 +15,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -54,6 +55,8 @@ public class Channel
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
+                // Workaround for issue: https://github.com/Azure/azure-functions-durable-extension/issues/1138#issuecomment-585868647
+                req.Body = new MemoryStream(Encoding.ASCII.GetBytes(requestBody));
             }
             var data = JsonConvert.DeserializeObject<AddChannelRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
@@ -128,7 +131,9 @@ public class Channel
                     Banner = data.Banner,
                 });
 
-            return new OkObjectResult(channelId);
+            _logger.Information("Started orchestration with ID {instanceId}.", instanceId);
+            // Wait for the instance to start executing
+            return await starter.WaitForCompletionOrCreateCheckStatusResponseAsync(req, instanceId, TimeSpan.FromSeconds(15));
         }
         catch (Exception e)
         {

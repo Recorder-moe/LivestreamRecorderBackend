@@ -9,20 +9,20 @@ using System.Threading.Tasks;
 namespace LivestreamRecorderBackend.Services.Authentication;
 
 public class MicrosoftService : IAuthenticationHandlerService
-
 {
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public MicrosoftService(
         IHttpClientFactory httpClientFactory)
     {
-        _httpClient = httpClientFactory.CreateClient("client");
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
-        _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
-        var response = await _httpClient.GetAsync("https://graph.microsoft.com/oidc/userinfo");
+        var httpClient = _httpClientFactory.CreateClient("client");
+        httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
+        var response = await httpClient.GetAsync("https://graph.microsoft.com/oidc/userinfo");
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"An error occurred when retrieving Microsoft user information ({response.StatusCode}). Please check if the authentication information is correct.");
