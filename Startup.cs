@@ -61,11 +61,11 @@ namespace LivestreamRecorderBackend
                                cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
 
-            builder.Services.AddScoped<UnitOfWork_Public>();
-            builder.Services.AddScoped<UnitOfWork_Private>();
-            builder.Services.AddScoped<IVideoRepository>((s) => new VideoRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
-            builder.Services.AddScoped<IChannelRepository>((s) => new ChannelRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
-            builder.Services.AddScoped<IUserRepository>((s) => new UserRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Private))));
+            builder.Services.AddSingleton<UnitOfWork_Public>();
+            builder.Services.AddSingleton<UnitOfWork_Private>();
+            builder.Services.AddSingleton<IVideoRepository>((s) => new VideoRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddSingleton<IChannelRepository>((s) => new ChannelRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddSingleton<IUserRepository>((s) => new UserRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Private))));
 #endif
             #endregion
             #region CouchDB
@@ -83,11 +83,11 @@ namespace LivestreamRecorderBackend
                     .SetPropertyCase(PropertyCaseType.None);
             });
 
-            builder.Services.AddScoped<UnitOfWork_Public>();
-            builder.Services.AddScoped<UnitOfWork_Private>();
-            builder.Services.AddScoped<IVideoRepository>((s) => new VideoRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
-            builder.Services.AddScoped<IChannelRepository>((s) => new ChannelRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
-            builder.Services.AddScoped<IUserRepository>((s) => new UserRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Private))));
+            builder.Services.AddSingleton<UnitOfWork_Public>();
+            builder.Services.AddSingleton<UnitOfWork_Private>();
+            builder.Services.AddSingleton<IVideoRepository>((s) => new VideoRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddSingleton<IChannelRepository>((s) => new ChannelRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddSingleton<IUserRepository>((s) => new UserRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Private))));
 #endif
             #endregion
 
