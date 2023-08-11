@@ -1,13 +1,21 @@
 ﻿using Azure.Identity;
-using LivestreamRecorder.DB.Core;
+#if COUCHDB
+using CouchDB.Driver.DependencyInjection;
+using CouchDB.Driver.Options;
+using LivestreamRecorder.DB.CouchDB;
+#endif
+#if COSMOSDB
+using LivestreamRecorder.DB.CosmosDB;
+using Microsoft.EntityFrameworkCore;
+#endif
 using LivestreamRecorder.DB.Interfaces;
+using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Interfaces;
 using LivestreamRecorderBackend.Services;
 using LivestreamRecorderBackend.Services.Authentication;
 using LivestreamRecorderBackend.Services.StorageService;
 using LivestreamRecorderBackend.SingletonServices;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Minio;
@@ -35,24 +43,52 @@ namespace LivestreamRecorderBackend
             builder.Services.AddMemoryCache(option => option.SizeLimit = 1024);
 
             #region CosmosDB
-            builder.Services.AddDbContext<PublicContext>(options =>
+#if COSMOSDB
+            builder.Services.AddDbContext<PublicContext>((options) =>
             {
-                options.UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Public")!,
-                                  databaseName: "Public",
-                                  cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
+                options
+                    //.EnableSensitiveDataLogging()
+                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Public")!,
+                               databaseName: "Public",
+                               cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
-            builder.Services.AddDbContext<PrivateContext>(options =>
+            builder.Services.AddDbContext<PrivateContext>((options) =>
             {
-                options.UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Private")!,
-                                  databaseName: "Private",
-                                  cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
+                options
+                    //.EnableSensitiveDataLogging()
+                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Private")!,
+                               databaseName: "Private",
+                               cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
 
-            builder.Services.AddSingleton<UnitOfWork_Public>();
-            builder.Services.AddSingleton<UnitOfWork_Private>();
-            builder.Services.AddSingleton<IVideoRepository, VideoRepository>();
-            builder.Services.AddSingleton<IChannelRepository, ChannelRepository>();
-            builder.Services.AddSingleton<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<UnitOfWork_Public>();
+            builder.Services.AddScoped<UnitOfWork_Private>();
+            builder.Services.AddScoped<IVideoRepository>((s) => new VideoRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddScoped<IChannelRepository>((s) => new ChannelRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddScoped<IUserRepository>((s) => new UserRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Private))));
+#endif
+            #endregion
+            #region CouchDB
+#if COUCHDB
+            builder.Services.AddCouchContext<CouchDBContext>((options) =>
+            {
+                options
+                    .UseEndpoint(Environment.GetEnvironmentVariable("CouchDB_Endpoint")!)
+                    .UseCookieAuthentication(username: Environment.GetEnvironmentVariable("CouchDB_Username")!, password: Environment.GetEnvironmentVariable("CouchDB_Password")!)
+#if !RELEASE
+                    .ConfigureFlurlClient(setting
+                        => setting.BeforeCall = call
+                            => Log.Debug("Sending request to couch: {request} {body}", call, call.RequestBody))
+#endif
+                    .SetPropertyCase(PropertyCaseType.None);
+            });
+
+            builder.Services.AddScoped<UnitOfWork_Public>();
+            builder.Services.AddScoped<UnitOfWork_Private>();
+            builder.Services.AddScoped<IVideoRepository>((s) => new VideoRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddScoped<IChannelRepository>((s) => new ChannelRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Public))));
+            builder.Services.AddScoped<IUserRepository>((s) => new UserRepository((IUnitOfWork)s.GetRequiredService(typeof(UnitOfWork_Private))));
+#endif
             #endregion
 
             #region Storage
@@ -67,10 +103,10 @@ namespace LivestreamRecorderBackend
                 }
 
                 builder.Services.AddAzureClients(clientsBuilder =>
-                {
-                    clientsBuilder.UseCredential(new DefaultAzureCredential())
-                                  .AddBlobServiceClient(Environment.GetEnvironmentVariable("Blob_ConnectionString"));
-                });
+                            {
+                                clientsBuilder.UseCredential(new DefaultAzureCredential())
+                                              .AddBlobServiceClient(Environment.GetEnvironmentVariable("Blob_ConnectionString"));
+                            });
 
                 builder.Services.AddSingleton<IStorageService, ABSService>();
             }

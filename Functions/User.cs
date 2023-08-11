@@ -118,7 +118,7 @@ public class User
             UpdateUserRequest data = JsonConvert.DeserializeObject<UpdateUserRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
-            user = _userService.UpdateUser(data, user);
+            user = await _userService.UpdateUserAsync(data, user);
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
             return new JsonResult(result, new JsonSerializerSettings()

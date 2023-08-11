@@ -1,5 +1,9 @@
 ﻿using Gravatar;
-using LivestreamRecorder.DB.Core;
+#if COSMOSDB
+using LivestreamRecorder.DB.CosmosDB;
+#elif COUCHDB
+using LivestreamRecorder.DB.CouchDB;
+#endif
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
@@ -34,7 +38,7 @@ public class UserService
         _authenticationService = authenticationService;
     }
 
-    internal User GetUserById(string id) => _userRepository.GetById(id);
+    internal Task<User?> GetUserByIdAsync(string id) => _userRepository.GetById(id);
 
     /// <summary>
     /// Get User by GoogleUID
@@ -140,7 +144,7 @@ public class UserService
             // Prevent GUID conflicts
             if (_userRepository.Exists(user.id)) user.id = Guid.NewGuid().ToString();
 
-            _userRepository.Add(user);
+            _userRepository.AddOrUpdate(user);
         }
         else if (null == user)
         {
@@ -150,7 +154,7 @@ public class UserService
         if (user.Picture != userPicture)
         {
             user.Picture = userPicture;
-            _userRepository.Update(user);
+            _userRepository.AddOrUpdate(user);
         }
 
         _unitOfWork_Private.Commit();
@@ -163,14 +167,15 @@ public class UserService
     /// <param name="user">User to updated.</param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException">User id is not match.</exception>
-    internal User UpdateUser(UpdateUserRequest request, User user)
+    internal async Task<User> UpdateUserAsync(UpdateUserRequest request, User user)
     {
         if (user.id != request.id)
         {
             throw new InvalidOperationException("User id is not match!!");
         }
 
-        user = _userRepository.GetById(user.id);
+        await _userRepository.ReloadEntityFromDB(user);
+
         user.UserName = request.UserName ?? user.UserName;
         // Only update if email invalid
         if (!ValidateEmail(user.Email)
@@ -187,9 +192,9 @@ public class UserService
 
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
-        var entry = _userRepository.Update(user);
+        user = await _userRepository.AddOrUpdate(user);
         _unitOfWork_Private.Commit();
-        return entry.Entity;
+        return user;
 
         static bool ValidateEmail(string email_string)
         {
@@ -295,7 +300,7 @@ public class UserService
 
     public User? AuthAndGetUser(ClaimsPrincipal principal)
     {
-#if DEBUG
+#if !RELEASE
         Helper.Log.LogClaimsPrincipal(principal);
 #endif
 

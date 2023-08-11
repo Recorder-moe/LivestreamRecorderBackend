@@ -1,8 +1,9 @@
-﻿using LivestreamRecorder.DB.Models;
+﻿#if COSMOSDB
+using LivestreamRecorder.DB.Models;
 using Microsoft.EntityFrameworkCore;
 #nullable disable warnings
 
-namespace LivestreamRecorder.DB.Core;
+namespace LivestreamRecorder.DB.CosmosDB;
 
 public class PublicContext : DbContext
 {
@@ -33,10 +34,12 @@ public class PublicContext : DbContext
         modelBuilder.Entity<Video>()
             .UseETagConcurrency();
 
+#pragma warning disable CS0618 // 類型或成員已經過時
         modelBuilder.Entity<Video>()
             .HasOne(o => o.Channel)
             .WithMany(o => o.Videos)
             .HasForeignKey(o => o.ChannelId);
+#pragma warning restore CS0618 // 類型或成員已經過時
         #endregion
 
         #region Channels
@@ -57,3 +60,4 @@ public class PublicContext : DbContext
         #endregion
     }
 }
+#endif

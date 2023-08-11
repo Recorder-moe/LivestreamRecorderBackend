@@ -62,7 +62,7 @@ public class Video
             }
 
             var videoId = await _videoService.AddVideoAsync(data.Url);
-            var video = _videoService.GetVideoById(videoId);
+            var video = await _videoService.GetVideoById(videoId);
             return new OkObjectResult(video);
         }
         catch (Exception e)
@@ -105,13 +105,14 @@ public class Video
                 return new BadRequestObjectResult("Missing videoId query parameter.");
             }
 
-            var video = _videoService.GetVideoById(data.id);
-            if (null == data)
+            var video = await _videoService.GetVideoById(data.id);
+            if (null == data
+                || null == video)
             {
                 return new BadRequestObjectResult("Video not found.");
             }
 
-            _videoService.UpdateVideo(video, data);
+            await _videoService.UpdateVideoAsync(video, data);
             return new OkResult();
         }
         catch (Exception e)
@@ -153,7 +154,7 @@ public class Video
                 return new BadRequestObjectResult("Missing videoId query parameter.");
             }
 
-            var video = _videoService.GetVideoById(videoId);
+            var video = await _videoService.GetVideoById(videoId);
             if (null == video)
             {
                 return new BadRequestObjectResult("Video not found.");
