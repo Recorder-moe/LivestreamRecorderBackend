@@ -1,9 +1,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS installer-env
 
+ARG DatabaseService="ApacheCouchDB"
+
 COPY . /src/dotnet-function-app
 RUN cd /src/dotnet-function-app && \
     mkdir -p /home/site/wwwroot && \
-    dotnet publish *.csproj --output /home/site/wwwroot --configuration Release
+    dotnet publish *.csproj --output /home/site/wwwroot --configuration ${DatabaseService}_Release
 
 FROM mcr.microsoft.com/azure-functions/dotnet:4
 
@@ -43,5 +45,8 @@ ENV S3_SecretKey=
 ENV S3_Secure=
 ENV S3_BucketNamePrivate=
 ENV S3_BucketNamePublic=
+ENV CouchDB_Endpoint=
+ENV CouchDB_Username=
+ENV CouchDB_Password=
 
 COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]
