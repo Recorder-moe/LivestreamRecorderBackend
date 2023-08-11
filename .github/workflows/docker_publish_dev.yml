@@ -5,9 +5,7 @@ on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches:
-      - "master"
-    tags:
-      - "*"
+      - "dev"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -34,7 +32,7 @@ jobs:
           flavor: |
             latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
           tags: |
-            type=raw,value=ApacheCouchDB
+            type=raw,value=ApacheCouchDB_dev
 
       - name: Docker meta
         id: meta_AzureCosmosDB
@@ -42,7 +40,7 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_ORGANIZATION_NAME }}/${{ github.event.repository.name }},ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=AzureCosmosDB
+            type=raw,value=AzureCosmosDB_dev
 
       # Create a Access Token and save it as as Actions secret
       # https://hub.docker.com/settings/security
