@@ -14,18 +14,28 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
+		ApacheCouchDB_Release|Any CPU = ApacheCouchDB_Release|Any CPU
+		AzureCosmosDB_Release|Any CPU = AzureCosmosDB_Release|Any CPU
+		CosmosDB|Any CPU = CosmosDB|Any CPU
+		CouchDB|Any CPU = CouchDB|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3CAD853A-82C2-483C-A716-F099B66A54B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3CAD853A-82C2-483C-A716-F099B66A54B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3CAD853A-82C2-483C-A716-F099B66A54B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3CAD853A-82C2-483C-A716-F099B66A54B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.ApacheCouchDB_Release|Any CPU.ActiveCfg = ApacheCouchDB_Release|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.ApacheCouchDB_Release|Any CPU.Build.0 = ApacheCouchDB_Release|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.AzureCosmosDB_Release|Any CPU.ActiveCfg = AzureCosmosDB_Release|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.AzureCosmosDB_Release|Any CPU.Build.0 = AzureCosmosDB_Release|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.CosmosDB|Any CPU.ActiveCfg = CosmosDB|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.CosmosDB|Any CPU.Build.0 = CosmosDB|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.CouchDB|Any CPU.ActiveCfg = CouchDB|Any CPU
+		{C17410BD-D41C-42D7-8A9E-B5BDAE842E31}.CouchDB|Any CPU.Build.0 = CouchDB|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.ApacheCouchDB_Release|Any CPU.ActiveCfg = ApacheCouchDB_Release|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.ApacheCouchDB_Release|Any CPU.Build.0 = ApacheCouchDB_Release|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.AzureCosmosDB_Release|Any CPU.ActiveCfg = AzureCosmosDB_Release|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.AzureCosmosDB_Release|Any CPU.Build.0 = AzureCosmosDB_Release|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.CosmosDB|Any CPU.ActiveCfg = CosmosDB|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.CosmosDB|Any CPU.Build.0 = CosmosDB|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.CouchDB|Any CPU.ActiveCfg = CouchDB|Any CPU
+		{3CAD853A-82C2-483C-A716-F099B66A54B9}.CouchDB|Any CPU.Build.0 = CouchDB|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

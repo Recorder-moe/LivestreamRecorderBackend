@@ -27,7 +27,7 @@ public class Utility
         return new OkResult();
     }
 
-#if !DEBUG && Windows
+#if RELEASE && Windows
     [FunctionName(nameof(WakeByTimer))]
     public void WakeByTimer([TimerTrigger("0 * * * * *")] TimerInfo timerInfo)
         => Wake();
@@ -35,7 +35,7 @@ public class Utility
 
     private void Wake()
     {
-#if DEBUG
+#if !RELEASE
 #pragma warning disable IDE0022 // 使用方法的運算式主體
         _logger.Verbose("Wake executed at: {time}", System.DateTime.Now);
 #pragma warning restore IDE0022 // 使用方法的運算式主體

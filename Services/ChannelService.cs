@@ -1,4 +1,8 @@
-﻿using LivestreamRecorder.DB.Core;
+﻿#if COSMOSDB
+using LivestreamRecorder.DB.CosmosDB;
+#elif COUCHDB
+using LivestreamRecorder.DB.CouchDB;
+#endif
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Helper;
@@ -40,11 +44,15 @@ public class ChannelService
         _storageService = storageService;
     }
 
-    internal Channel GetChannelById(string id) => _channelRepository.GetById(id);
+    internal Task<Channel?> GetChannelByIdAsync(string id)
+        => _channelRepository.GetById(id);
+
+    public Task<Channel?> GetByChannelIdAndSource(string channelId, string source)
+        => _channelRepository.GetByChannelIdAndSource(channelId, source);
 
     internal bool ChannelExists(string id) => _channelRepository.Exists(id);
 
-    internal Channel AddChannel(string id, string source, string channelName)
+    internal async Task<Channel> AddChannelAsync(string id, string source, string channelName)
     {
         var channel = new Channel
         {
@@ -61,7 +69,7 @@ public class ChannelService
             channel.Hide = true;
         }
 
-        _channelRepository.Add(channel);
+        await _channelRepository.AddOrUpdate(channel);
         _unitOfWork_Public.Commit();
         return channel;
     }
@@ -125,12 +133,11 @@ public class ChannelService
             bannerBlobUri = await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation);
         }
 
-        _unitOfWork_Public.Context.Entry(channel).Reload();
-        channel = _channelRepository.LoadRelatedData(channel);
+        await _channelRepository.ReloadEntityFromDB(channel);
         channel.ChannelName = channelName;
         channel.Avatar = avatarBlobUri?.Replace("avatar/", "");
         channel.Banner = bannerBlobUri?.Replace("banner/", "");
-        _channelRepository.Update(channel);
+        await _channelRepository.AddOrUpdate(channel);
         _unitOfWork_Public.Commit();
     }
 
@@ -202,19 +209,27 @@ public class ChannelService
         return pathInStorage;
     }
 
-    public void EnableMonitoring(string channelId)
+    public async Task EnableMonitoringAsync(string channelId)
     {
-        var channel = _channelRepository.GetById(channelId);
+        var channel = await _channelRepository.GetById(channelId);
+        if (null == channel)
+        {
+            throw new EntryPointNotFoundException($"Channel {channelId} not found.");
+        }
         channel.Monitoring = true;
-        _channelRepository.Update(channel);
+        await _channelRepository.AddOrUpdate(channel);
         _unitOfWork_Public.Commit();
     }
 
-    public void DisableMonitoring(string channelId)
+    public async Task DisableMonitoringAsync(string channelId)
     {
-        var channel = _channelRepository.GetById(channelId);
+        var channel = await _channelRepository.GetById(channelId);
+        if (null == channel)
+        {
+            throw new EntryPointNotFoundException($"Channel {channelId} not found.");
+        }
         channel.Monitoring = false;
-        _channelRepository.Update(channel);
+        await _channelRepository.AddOrUpdate(channel);
         _unitOfWork_Public.Commit();
     }
 }

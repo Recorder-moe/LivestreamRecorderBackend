@@ -112,10 +112,10 @@ public class Channel
             }
 
             channel = _channelService.ChannelExists(channelId)
-                ? _channelService.GetChannelById(channelId)
-                : _channelService.AddChannel(id: channelId,
-                                            source: Platform,
-                                            channelName: channelName);
+                ? await _channelService.GetByChannelIdAndSource(channelId, Platform) ?? throw new EntityNotFoundException(channelId)
+                : await _channelService.AddChannelAsync(id: channelId,
+                                                        source: Platform,
+                                                        channelName: channelName);
 
             _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
@@ -190,7 +190,12 @@ public class Channel
         _ = Task.Run(async () =>
         {
             _logger.Information("Start updating channel {channelId}", data.id);
-            var channel = _channelService.GetChannelById(data.id);
+            var channel = await _channelService.GetChannelByIdAsync(data.id);
+            if (null == channel)
+            {
+                _logger.Warning("Channel {channelId} not found when updating", data.id);
+                throw new EntityNotFoundException(data.id);
+            }
 
             if (null != data.Avatar)
             {
@@ -199,7 +204,7 @@ public class Channel
             }
             await _channelService.UpdateChannelData(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
-            _channelService.EnableMonitoring(data.id);
+            await _channelService.EnableMonitoringAsync(data.id);
             _logger.Information("Finish updating channel {channelId}", data.id);
         });
         return true;
@@ -227,9 +232,9 @@ public class Channel
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (data.Monitoring)
-                _channelService.EnableMonitoring(data.id);
+                await _channelService.EnableMonitoringAsync(data.id);
             else
-                _channelService.DisableMonitoring(data.id);
+                await _channelService.DisableMonitoringAsync(data.id);
 
             return new OkResult();
         }

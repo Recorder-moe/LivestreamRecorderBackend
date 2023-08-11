@@ -6,6 +6,7 @@
     <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows>
     <IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX>
     <IsLinux Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">true</IsLinux>
+<Configurations>CouchDB;CosmosDB;AzureCosmosDB_Release;ApacheCouchDB_Release</Configurations>
   </PropertyGroup>
   <PropertyGroup Condition="'$(IsWindows)'=='true'">
     <DefineConstants>Windows</DefineConstants>
@@ -16,12 +17,22 @@
   <PropertyGroup Condition="'$(IsLinux)'=='true'">
     <DefineConstants>Linux</DefineConstants>
   </PropertyGroup>
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='AzureCosmosDB_Release|AnyCPU'">
+  <Optimize>True</Optimize>
+  <DefineConstants>$(DefineConstants);COSMOSDB;RELEASE</DefineConstants>
+</PropertyGroup>
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ApacheCouchDB_Release|AnyCPU'">
+  <Optimize>True</Optimize>
+  <DefineConstants>$(DefineConstants);COUCHDB;RELEASE</DefineConstants>
+</PropertyGroup>
   <ItemGroup>
     <Compile Remove="LivestreamRecorder.DB\**" />
     <EmbeddedResource Remove="LivestreamRecorder.DB\**" />
     <None Remove="LivestreamRecorder.DB\**" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="CouchDB.NET" Version="3.4.0" />
+    <PackageReference Include="CouchDB.NET.DependencyInjection" Version="3.4.0" />
     <PackageReference Include="Google.Apis.Auth" Version="1.61.0" />
     <PackageReference Include="Gravatar-t5" Version="1.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.20" />
