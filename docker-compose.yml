@@ -16,8 +16,8 @@ services:
       - AzureWebJobsStorage=
       - Seq_ServerUrl=
       - Seq_ApiKey=
-      - ConnectionStrings_Private=
-      - ConnectionStrings_Public=
+      - CosmosDB_Private_ConnectionString=
+      - CosmosDB_Public_ConnectionString=
       - Blob_ConnectionString=
       - Blob_ContainerName=
       - Blob_ContainerNamePublic=

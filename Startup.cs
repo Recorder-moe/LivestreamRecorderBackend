@@ -48,7 +48,7 @@ namespace LivestreamRecorderBackend
             {
                 options
                     //.EnableSensitiveDataLogging()
-                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Public")!,
+                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("CosmosDB_Public_ConnectionString")!,
                                databaseName: "Public",
                                cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
@@ -56,7 +56,7 @@ namespace LivestreamRecorderBackend
             {
                 options
                     //.EnableSensitiveDataLogging()
-                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Private")!,
+                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("CosmosDB_Private_ConnectionString")!,
                                databaseName: "Private",
                                cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
