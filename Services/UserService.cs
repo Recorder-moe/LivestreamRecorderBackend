@@ -82,7 +82,7 @@ public class UserService
             ?? throw new EntityNotFoundException($"Entity with DiscordUID: {discordUID} was not found.");
 
 
-    internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
+    internal async Task CreateOrUpdateUserWithOAuthClaimsAsync(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
                             ?? claimsPrincipal.FindFirstValue(ClaimTypes.Name)
@@ -104,10 +104,11 @@ public class UserService
                             ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
-        // First user
-        int UserCount = _userRepository.All().Count();
+        bool hasUser = (await _userRepository.CountAsync()) > 0;
         if (null == user
-            && (UserCount == 0
+            // First user
+            && (!hasUser
+                // Allow registration
                 || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true))
         {
             user = new User()
@@ -117,7 +118,7 @@ public class UserService
                 Email = userEmail ?? "",
                 Picture = userPicture,
                 RegistrationDate = DateTime.Now,
-                IsAdmin = UserCount == 0
+                IsAdmin = !hasUser
             };
 
             string? uid = GetUID(claimsPrincipal);

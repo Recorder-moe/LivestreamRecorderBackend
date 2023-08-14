@@ -82,7 +82,7 @@ public class User
                 || null == principal.Identity
                 || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
 
-            _userService.CreateOrUpdateUserWithOAuthClaims(principal);
+            await _userService.CreateOrUpdateUserWithOAuthClaimsAsync(principal);
             return new OkResult();
         }
         catch (Exception e)
