@@ -10,6 +10,8 @@ internal class UpdateVideoRequest
     public string id { get; set; }
 #pragma warning restore IDE1006 // 命名樣式
 
+    public string ChannelId { get; set; }
+
     public VideoStatus? Status { get; set; }
 
     public VideoStatus? SourceStatus { get; set; }

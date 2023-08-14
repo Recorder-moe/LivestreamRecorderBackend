@@ -44,13 +44,8 @@ public class ChannelService
         _storageService = storageService;
     }
 
-    internal Task<Channel?> GetChannelByIdAsync(string id)
-        => _channelRepository.GetById(id);
-
     public Task<Channel?> GetByChannelIdAndSource(string channelId, string source)
         => _channelRepository.GetByChannelIdAndSource(channelId, source);
-
-    internal bool ChannelExists(string id) => _channelRepository.Exists(id);
 
     internal async Task<Channel> AddChannelAsync(string id, string source, string channelName)
     {
@@ -209,26 +204,14 @@ public class ChannelService
         return pathInStorage;
     }
 
-    public async Task EnableMonitoringAsync(string channelId)
+    public async Task EditMonitoringAsync(string channelId, string source, bool enable)
     {
-        var channel = await _channelRepository.GetById(channelId);
+        var channel = await _channelRepository.GetByChannelIdAndSource(channelId, source);
         if (null == channel)
         {
             throw new EntryPointNotFoundException($"Channel {channelId} not found.");
         }
-        channel.Monitoring = true;
-        await _channelRepository.AddOrUpdate(channel);
-        _unitOfWork_Public.Commit();
-    }
-
-    public async Task DisableMonitoringAsync(string channelId)
-    {
-        var channel = await _channelRepository.GetById(channelId);
-        if (null == channel)
-        {
-            throw new EntryPointNotFoundException($"Channel {channelId} not found.");
-        }
-        channel.Monitoring = false;
+        channel.Monitoring = enable;
         await _channelRepository.AddOrUpdate(channel);
         _unitOfWork_Public.Commit();
     }

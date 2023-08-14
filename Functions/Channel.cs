@@ -111,11 +111,10 @@ public class Channel
                     break;
             }
 
-            channel = _channelService.ChannelExists(channelId)
-                ? await _channelService.GetByChannelIdAndSource(channelId, Platform) ?? throw new EntityNotFoundException(channelId)
-                : await _channelService.AddChannelAsync(id: channelId,
-                                                        source: Platform,
-                                                        channelName: channelName);
+            channel = await _channelService.GetByChannelIdAndSource(channelId, Platform)
+                        ?? await _channelService.AddChannelAsync(id: channelId,
+                                                                 source: Platform,
+                                                                 channelName: channelName);
 
             _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
@@ -124,6 +123,7 @@ public class Channel
                 input: new UpdateChannelRequest()
                 {
                     id = channelId,
+                    Source = channel.Source,
                     AutoUpdateInfo = channel.Source == "Youtube"
                                      || channel.Source == "FC2",
                     ChannelName = data.Name ?? channelName ?? channelId,
@@ -190,7 +190,7 @@ public class Channel
         _ = Task.Run(async () =>
         {
             _logger.Information("Start updating channel {channelId}", data.id);
-            var channel = await _channelService.GetChannelByIdAsync(data.id);
+            var channel = await _channelService.GetByChannelIdAndSource(data.id, data.Source);
             if (null == channel)
             {
                 _logger.Warning("Channel {channelId} not found when updating", data.id);
@@ -204,7 +204,7 @@ public class Channel
             }
             await _channelService.UpdateChannelData(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
-            await _channelService.EnableMonitoringAsync(data.id);
+            await _channelService.EditMonitoringAsync(data.id, data.Source, true);
             _logger.Information("Finish updating channel {channelId}", data.id);
         });
         return true;
@@ -212,7 +212,7 @@ public class Channel
 
     [FunctionName(nameof(EnableChannelAsync))]
     [OpenApiOperation(operationId: nameof(EnableChannelAsync), tags: new[] { nameof(Channel) })]
-    [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
+    [OpenApiRequestBody("application/json", typeof(EnableChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
     public async Task<IActionResult> EnableChannelAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/EnableChannel")] HttpRequest req)
@@ -231,10 +231,7 @@ public class Channel
             var data = JsonConvert.DeserializeObject<EnableChannelRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
-            if (data.Monitoring)
-                await _channelService.EnableMonitoringAsync(data.id);
-            else
-                await _channelService.DisableMonitoringAsync(data.id);
+            await _channelService.EditMonitoringAsync(data.id, data.Source, data.Monitoring);
 
             return new OkResult();
         }

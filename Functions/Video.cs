@@ -61,8 +61,7 @@ public class Video
                 return new BadRequestObjectResult("Missing Url parameter.");
             }
 
-            var videoId = await _videoService.AddVideoAsync(data.Url);
-            var video = await _videoService.GetVideoById(videoId);
+            var video = await _videoService.AddVideoAsync(data.Url);
             return new OkObjectResult(video);
         }
         catch (Exception e)
@@ -104,8 +103,12 @@ public class Video
             {
                 return new BadRequestObjectResult("Missing videoId query parameter.");
             }
+            if (string.IsNullOrEmpty(data.ChannelId))
+            {
+                return new BadRequestObjectResult("Missing channelId query parameter.");
+            }
 
-            var video = await _videoService.GetVideoById(data.id);
+            var video = await _videoService.GetByVideoIdAndChannelId(data.id, data.ChannelId);
             if (null == data
                 || null == video)
             {
@@ -135,6 +138,7 @@ public class Video
     [FunctionName(nameof(RemoveVideoAsync))]
     [OpenApiOperation(operationId: nameof(RemoveVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
+    [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
     public async Task<IActionResult> RemoveVideoAsync(
@@ -148,13 +152,13 @@ public class Video
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);
+            queryDictionary.TryGetValue("channelId", out var channelId);
 
-            if (null == videoId)
-            {
-                return new BadRequestObjectResult("Missing videoId query parameter.");
-            }
+            if (string.IsNullOrEmpty(videoId)
+                || string.IsNullOrEmpty(channelId))
+                return new BadRequestObjectResult("Missing query parameter.");
 
-            var video = await _videoService.GetVideoById(videoId);
+            var video = await _videoService.GetByVideoIdAndChannelId(videoId, channelId);
             if (null == video)
             {
                 return new BadRequestObjectResult("Video not found.");
@@ -183,6 +187,7 @@ public class Video
     [FunctionName(nameof(GetToken))]
     [OpenApiOperation(operationId: nameof(GetToken), tags: new[] { nameof(Video) })]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
+    [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The Token.")]
     public async Task<IActionResult> GetToken(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/Token")] HttpRequest req)
@@ -195,11 +200,13 @@ public class Video
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);
+            queryDictionary.TryGetValue("channelId", out var channelId);
 
-            if (string.IsNullOrEmpty(videoId))
+            if (string.IsNullOrEmpty(videoId)
+                || string.IsNullOrEmpty(channelId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            string token = await _videoService.GetToken(videoId);
+            string token = await _videoService.GetToken(videoId, channelId);
             if (string.IsNullOrEmpty(token))
             {
                 _logger.Warning("The video {videoId} download by user {userId} failed when generating Token.", videoId, user.id);
