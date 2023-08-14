@@ -111,7 +111,7 @@ public class Channel
                     break;
             }
 
-            channel = await _channelService.GetByChannelIdAndSource(channelId, Platform)
+            channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, Platform)
                         ?? await _channelService.AddChannelAsync(id: channelId,
                                                                  source: Platform,
                                                                  channelName: channelName);
@@ -190,7 +190,7 @@ public class Channel
         _ = Task.Run(async () =>
         {
             _logger.Information("Start updating channel {channelId}", data.id);
-            var channel = await _channelService.GetByChannelIdAndSource(data.id, data.Source);
+            var channel = await _channelService.GetByChannelIdAndSourceAsync(data.id, data.Source);
             if (null == channel)
             {
                 _logger.Warning("Channel {channelId} not found when updating", data.id);
@@ -202,7 +202,7 @@ public class Channel
                 data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
                                          .Replace("70x70", "300x300");  // Twitch
             }
-            await _channelService.UpdateChannelData(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
+            await _channelService.UpdateChannelDataAsync(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
             await _channelService.EditMonitoringAsync(data.id, data.Source, true);
             _logger.Information("Finish updating channel {channelId}", data.id);

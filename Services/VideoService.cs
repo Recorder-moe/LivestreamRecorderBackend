@@ -34,8 +34,8 @@ public class VideoService
         _unitOfWork_Public = unitOfWork_Public;
     }
 
-    public Task<Video?> GetByVideoIdAndChannelId(string videoId, string channelId)
-        => _videoRepository.GetByVideoIdAndChannelId(videoId, channelId);
+    public Task<Video?> GetByVideoIdAndChannelIdAsync(string videoId, string channelId)
+        => _videoRepository.GetVideoByIdAndChannelIdAsync(videoId, channelId);
 
     internal async Task<Video?> AddVideoAsync(string url)
     {
@@ -79,13 +79,13 @@ public class VideoService
             id = "Y" + id;
         }
 
-        if (null != await _videoRepository.GetByVideoIdAndChannelId(id, channelId))
+        if (null != await _videoRepository.GetVideoByIdAndChannelIdAsync(id, channelId))
         {
             _logger.Warning("Video {videoId} already exists", id);
             throw new InvalidOperationException($"Video {id} already exists.");
         }
 
-        var video = await _videoRepository.AddOrUpdate(new()
+        var video = await _videoRepository.AddOrUpdateAsync(new()
         {
             id = id,
             Source = Platform,
@@ -101,28 +101,28 @@ public class VideoService
         });
         _unitOfWork_Public.Commit();
 
-        return await _videoRepository.ReloadEntityFromDB(video);
+        return await _videoRepository.ReloadEntityFromDBAsync(video);
     }
 
     internal async Task UpdateVideoAsync(Video video, UpdateVideoRequest updateVideoRequest)
     {
-        await _videoRepository.ReloadEntityFromDB(video);
+        await _videoRepository.ReloadEntityFromDBAsync(video);
 
         if (updateVideoRequest.Status.HasValue) video.Status = updateVideoRequest.Status.Value;
         if (updateVideoRequest.SourceStatus.HasValue) video.SourceStatus = updateVideoRequest.SourceStatus.Value;
         if (null != updateVideoRequest.Note) video.Note = updateVideoRequest.Note;
-        await _videoRepository.AddOrUpdate(video);
+        await _videoRepository.AddOrUpdateAsync(video);
         _unitOfWork_Public.Commit();
     }
 
     internal async Task RemoveVideoAsync(Video video)
     {
-        await _videoRepository.ReloadEntityFromDB(video);
+        await _videoRepository.ReloadEntityFromDBAsync(video);
         video.Status = VideoStatus.Deleted;
-        await _videoRepository.AddOrUpdate(video);
+        await _videoRepository.AddOrUpdateAsync(video);
         _unitOfWork_Public.Commit();
         if (null != video.Filename)
-            await _storageService.DeleteVideoBlob(video.Filename);
+            await _storageService.DeleteVideoBlobAsync(video.Filename);
     }
 
     /// <summary>
@@ -130,11 +130,11 @@ public class VideoService
     /// </summary>
     /// <param name="videoId"></param>
     /// <returns>token</returns>
-    internal async Task<string> GetToken(string videoId, string channelId)
+    internal async Task<string> GetTokenAsync(string videoId, string channelId)
     {
-        Video? video = await _videoRepository.GetByVideoIdAndChannelId(videoId, channelId);
+        Video? video = await _videoRepository.GetVideoByIdAndChannelIdAsync(videoId, channelId);
         return null == video
             ? throw new EntityNotFoundException($"Video {video} not found")
-            : await _storageService.GetToken(video);
+            : await _storageService.GetTokenAsync(video);
     }
 }

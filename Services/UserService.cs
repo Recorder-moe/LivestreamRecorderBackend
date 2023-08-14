@@ -38,7 +38,7 @@ public class UserService
         _authenticationService = authenticationService;
     }
 
-    internal Task<User?> GetUserByIdAsync(string id) => _userRepository.GetById(id);
+    internal Task<User?> GetUserByIdAsync(string id) => _userRepository.GetByIdAsync(id);
 
     /// <summary>
     /// Get User by GoogleUID
@@ -144,7 +144,7 @@ public class UserService
             // Prevent GUID conflicts
             if (_userRepository.Exists(user.id)) user.id = Guid.NewGuid().ToString();
 
-            _userRepository.AddOrUpdate(user);
+            _userRepository.AddOrUpdateAsync(user);
         }
         else if (null == user)
         {
@@ -154,7 +154,7 @@ public class UserService
         if (user.Picture != userPicture)
         {
             user.Picture = userPicture;
-            _userRepository.AddOrUpdate(user);
+            _userRepository.AddOrUpdateAsync(user);
         }
 
         _unitOfWork_Private.Commit();
@@ -174,7 +174,7 @@ public class UserService
             throw new InvalidOperationException("User id is not match!!");
         }
 
-        await _userRepository.ReloadEntityFromDB(user);
+        await _userRepository.ReloadEntityFromDBAsync(user);
 
         user.UserName = request.UserName ?? user.UserName;
         // Only update if email invalid
@@ -192,7 +192,7 @@ public class UserService
 
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
-        user = await _userRepository.AddOrUpdate(user);
+        user = await _userRepository.AddOrUpdateAsync(user);
         _unitOfWork_Private.Commit();
         return user;
 

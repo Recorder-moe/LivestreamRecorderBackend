@@ -108,7 +108,7 @@ public class Video
                 return new BadRequestObjectResult("Missing channelId query parameter.");
             }
 
-            var video = await _videoService.GetByVideoIdAndChannelId(data.id, data.ChannelId);
+            var video = await _videoService.GetByVideoIdAndChannelIdAsync(data.id, data.ChannelId);
             if (null == data
                 || null == video)
             {
@@ -158,7 +158,7 @@ public class Video
                 || string.IsNullOrEmpty(channelId))
                 return new BadRequestObjectResult("Missing query parameter.");
 
-            var video = await _videoService.GetByVideoIdAndChannelId(videoId, channelId);
+            var video = await _videoService.GetByVideoIdAndChannelIdAsync(videoId, channelId);
             if (null == video)
             {
                 return new BadRequestObjectResult("Video not found.");
@@ -206,7 +206,7 @@ public class Video
                 || string.IsNullOrEmpty(channelId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            string token = await _videoService.GetToken(videoId, channelId);
+            string token = await _videoService.GetTokenAsync(videoId, channelId);
             if (string.IsNullOrEmpty(token))
             {
                 _logger.Warning("The video {videoId} download by user {userId} failed when generating Token.", videoId, user.id);

@@ -24,7 +24,7 @@ public class S3Service : IStorageService
         _logger = logger;
     }
 
-    public async Task<bool> DeleteVideoBlob(string filename, CancellationToken cancellation = default)
+    public async Task<bool> DeleteVideoBlobAsync(string filename, CancellationToken cancellation = default)
     {
         try
         {
@@ -40,7 +40,7 @@ public class S3Service : IStorageService
         }
     }
 
-    public async Task UploadPublicFile(string? contentType, string pathInStorage, string tempPath, CancellationToken cancellation = default)
+    public async Task UploadPublicFileAsync(string? contentType, string pathInStorage, string tempPath, CancellationToken cancellation = default)
     {
         try
         {
@@ -56,7 +56,7 @@ public class S3Service : IStorageService
         }
     }
 
-    public async Task<string> GetToken(Video video)
+    public async Task<string> GetTokenAsync(Video video)
     {
         try
         {

@@ -44,8 +44,8 @@ public class ChannelService
         _storageService = storageService;
     }
 
-    public Task<Channel?> GetByChannelIdAndSource(string channelId, string source)
-        => _channelRepository.GetByChannelIdAndSource(channelId, source);
+    public Task<Channel?> GetByChannelIdAndSourceAsync(string channelId, string source)
+        => _channelRepository.GetChannelByIdAndSourceAsync(channelId, source);
 
     internal async Task<Channel> AddChannelAsync(string id, string source, string channelName)
     {
@@ -64,12 +64,12 @@ public class ChannelService
             channel.Hide = true;
         }
 
-        await _channelRepository.AddOrUpdate(channel);
+        await _channelRepository.AddOrUpdateAsync(channel);
         _unitOfWork_Public.Commit();
         return channel;
     }
 
-    internal async Task UpdateChannelData(Channel channel, bool autoUpdateInfo, string? name = null, string? avatarUrl = null, string? bannerUrl = null, CancellationToken cancellation = default)
+    internal async Task UpdateChannelDataAsync(Channel channel, bool autoUpdateInfo, string? name = null, string? avatarUrl = null, string? bannerUrl = null, CancellationToken cancellation = default)
     {
         var channelName = channel.ChannelName;
         var avatarBlobUri = channel.Avatar;
@@ -120,19 +120,19 @@ public class ChannelService
 
         if (!string.IsNullOrEmpty(avatarUrl) && avatarUrl.StartsWith("http"))
         {
-            avatarBlobUri = await DownloadImageAndUploadToBlobStorage(avatarUrl, $"avatar/{channel.id}", cancellation);
+            avatarBlobUri = await DownloadImageAndUploadToBlobStorageAsync(avatarUrl, $"avatar/{channel.id}", cancellation);
         }
 
         if (!string.IsNullOrEmpty(bannerUrl) && bannerUrl.StartsWith("http"))
         {
-            bannerBlobUri = await DownloadImageAndUploadToBlobStorage(bannerUrl, $"banner/{channel.id}", cancellation);
+            bannerBlobUri = await DownloadImageAndUploadToBlobStorageAsync(bannerUrl, $"banner/{channel.id}", cancellation);
         }
 
-        await _channelRepository.ReloadEntityFromDB(channel);
+        await _channelRepository.ReloadEntityFromDBAsync(channel);
         channel.ChannelName = channelName;
         channel.Avatar = avatarBlobUri?.Replace("avatar/", "");
         channel.Banner = bannerBlobUri?.Replace("banner/", "");
-        await _channelRepository.AddOrUpdate(channel);
+        await _channelRepository.AddOrUpdateAsync(channel);
         _unitOfWork_Public.Commit();
     }
 
@@ -146,7 +146,7 @@ public class ChannelService
     protected async Task<string?> DownloadThumbnailAsync(string thumbnail, string videoId, CancellationToken cancellation = default)
         => string.IsNullOrEmpty(thumbnail)
             ? null
-            : (await DownloadImageAndUploadToBlobStorage(thumbnail, $"thumbnails/{videoId}", cancellation))?.Replace("thumbnails/", "");
+            : (await DownloadImageAndUploadToBlobStorageAsync(thumbnail, $"thumbnails/{videoId}", cancellation))?.Replace("thumbnails/", "");
 
     /// <summary>
     /// Download image and upload it to Blob Storage
@@ -156,7 +156,7 @@ public class ChannelService
     /// <param name="cancellation"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentNullException"></exception>
-    protected async Task<string?> DownloadImageAndUploadToBlobStorage(string url, string path, CancellationToken cancellation)
+    protected async Task<string?> DownloadImageAndUploadToBlobStorageAsync(string url, string path, CancellationToken cancellation)
     {
         if (string.IsNullOrEmpty(url))
         {
@@ -186,14 +186,14 @@ public class ChannelService
 
         List<Task> tasks = new()
         {
-            _storageService.UploadPublicFile(contentType: contentType,
-                                             pathInStorage: pathInStorage,
-                                             filePathToUpload: tempPath,
-                                             cancellation: cancellation),
-            _storageService.UploadPublicFile(contentType: KnownMimeTypes.Avif,
-                                             pathInStorage: $"{path}.avif",
-                                             filePathToUpload: await ImageHelper.ConvertToAvifAsync(tempPath),
-                                             cancellation: cancellation)
+            _storageService.UploadPublicFileAsync(contentType: contentType,
+                                                  pathInStorage: pathInStorage,
+                                                  filePathToUpload: tempPath,
+                                                  cancellation: cancellation),
+            _storageService.UploadPublicFileAsync(contentType: KnownMimeTypes.Avif,
+                                                  pathInStorage: $"{path}.avif",
+                                                  filePathToUpload: await ImageHelper.ConvertToAvifAsync(tempPath),
+                                                  cancellation: cancellation)
         };
 
         await Task.WhenAll(tasks);
@@ -206,13 +206,13 @@ public class ChannelService
 
     public async Task EditMonitoringAsync(string channelId, string source, bool enable)
     {
-        var channel = await _channelRepository.GetByChannelIdAndSource(channelId, source);
+        var channel = await _channelRepository.GetChannelByIdAndSourceAsync(channelId, source);
         if (null == channel)
         {
             throw new EntryPointNotFoundException($"Channel {channelId} not found.");
         }
         channel.Monitoring = enable;
-        await _channelRepository.AddOrUpdate(channel);
+        await _channelRepository.AddOrUpdateAsync(channel);
         _unitOfWork_Public.Commit();
     }
 }
