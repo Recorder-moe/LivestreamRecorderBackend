@@ -145,7 +145,7 @@ public class UserService
             // Prevent GUID conflicts
             if (_userRepository.Exists(user.id)) user.id = Guid.NewGuid().ToString();
 
-            _userRepository.AddOrUpdateAsync(user);
+            await _userRepository.AddOrUpdateAsync(user);
         }
         else if (null == user)
         {
@@ -155,7 +155,7 @@ public class UserService
         if (user.Picture != userPicture)
         {
             user.Picture = userPicture;
-            _userRepository.AddOrUpdateAsync(user);
+            await _userRepository.AddOrUpdateAsync(user);
         }
 
         _unitOfWork_Private.Commit();
