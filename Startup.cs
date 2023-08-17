@@ -19,7 +19,6 @@ using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Minio;
-using Newtonsoft.Json.Serialization;
 using Serilog;
 using System;
 using System.Configuration;
@@ -33,9 +32,6 @@ namespace LivestreamRecorderBackend
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddMvc()
-                .AddNewtonsoftJson(o => o.SerializerSettings.ContractResolver = new DefaultContractResolver());
-
             builder.Services.AddHttpClient("client", config =>
             {
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(".NET", "6.0"));
