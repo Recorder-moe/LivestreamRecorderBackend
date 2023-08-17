@@ -38,7 +38,7 @@ public class UserService
         _authenticationService = authenticationService;
     }
 
-    internal Task<User?> GetUserByIdAsync(string id) => _userRepository.GetById(id);
+    internal Task<User?> GetUserByIdAsync(string id) => _userRepository.GetByIdAsync(id);
 
     /// <summary>
     /// Get User by GoogleUID
@@ -82,7 +82,7 @@ public class UserService
             ?? throw new EntityNotFoundException($"Entity with DiscordUID: {discordUID} was not found.");
 
 
-    internal void CreateOrUpdateUserWithOAuthClaims(ClaimsPrincipal claimsPrincipal)
+    internal async Task CreateOrUpdateUserWithOAuthClaimsAsync(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
                             ?? claimsPrincipal.FindFirstValue(ClaimTypes.Name)
@@ -104,10 +104,11 @@ public class UserService
                             ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
-        // First user
-        int UserCount = _userRepository.All().Count();
+        bool hasUser = (await _userRepository.CountAsync()) > 0;
         if (null == user
-            && (UserCount == 0
+            // First user
+            && (!hasUser
+                // Allow registration
                 || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true))
         {
             user = new User()
@@ -117,7 +118,7 @@ public class UserService
                 Email = userEmail ?? "",
                 Picture = userPicture,
                 RegistrationDate = DateTime.Now,
-                IsAdmin = UserCount == 0
+                IsAdmin = !hasUser
             };
 
             string? uid = GetUID(claimsPrincipal);
@@ -144,7 +145,7 @@ public class UserService
             // Prevent GUID conflicts
             if (_userRepository.Exists(user.id)) user.id = Guid.NewGuid().ToString();
 
-            _userRepository.AddOrUpdate(user);
+            _userRepository.AddOrUpdateAsync(user);
         }
         else if (null == user)
         {
@@ -154,7 +155,7 @@ public class UserService
         if (user.Picture != userPicture)
         {
             user.Picture = userPicture;
-            _userRepository.AddOrUpdate(user);
+            _userRepository.AddOrUpdateAsync(user);
         }
 
         _unitOfWork_Private.Commit();
@@ -174,7 +175,7 @@ public class UserService
             throw new InvalidOperationException("User id is not match!!");
         }
 
-        await _userRepository.ReloadEntityFromDB(user);
+        await _userRepository.ReloadEntityFromDBAsync(user);
 
         user.UserName = request.UserName ?? user.UserName;
         // Only update if email invalid
@@ -192,7 +193,7 @@ public class UserService
 
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
-        user = await _userRepository.AddOrUpdate(user);
+        user = await _userRepository.AddOrUpdateAsync(user);
         _unitOfWork_Private.Commit();
         return user;
 

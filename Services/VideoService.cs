@@ -34,24 +34,10 @@ public class VideoService
         _unitOfWork_Public = unitOfWork_Public;
     }
 
-    internal async Task<bool> IsVideoArchivedAsync(string videoId)
-    {
-        var video = await _videoRepository.GetById(videoId);
+    public Task<Video?> GetByVideoIdAndChannelIdAsync(string videoId, string channelId)
+        => _videoRepository.GetVideoByIdAndChannelIdAsync(videoId, channelId);
 
-        // Check if video is archived
-        return null != video
-                && (video.Status == VideoStatus.Archived
-                   || video.Size.HasValue
-                   || video.Size > 0);
-    }
-
-    internal Task<Video?> GetVideoById(string id)
-        => _videoRepository.GetById(id);
-
-    public Task<Video?> GetByVideoIdAndChannelId(string videoId, string channelId)
-        => _videoRepository.GetByVideoIdAndChannelId(videoId, channelId);
-
-    internal async Task<string> AddVideoAsync(string url)
+    internal async Task<Video?> AddVideoAsync(string url)
     {
         string? Platform;
         if (url.Contains("youtube"))
@@ -84,13 +70,22 @@ public class VideoService
         }
 
         var id = info.Id;
-        if (_videoRepository.Exists(id))
+        string channelId = info.ChannelId ?? info.UploaderId ?? Platform;
+
+        // Youtube video id may start with '_' which is not allowed in CouchDB.
+        // So we add a prefix 'Y' to it.
+        if (Platform == "Youtube")
+        {
+            id = "Y" + id;
+        }
+
+        if (null != await _videoRepository.GetVideoByIdAndChannelIdAsync(id, channelId))
         {
             _logger.Warning("Video {videoId} already exists", id);
             throw new InvalidOperationException($"Video {id} already exists.");
         }
 
-        await _videoRepository.AddOrUpdate(new()
+        var video = await _videoRepository.AddOrUpdateAsync(new()
         {
             id = id,
             Source = Platform,
@@ -98,7 +93,7 @@ public class VideoService
             SourceStatus = VideoStatus.Exist,
             Title = info.Title,
             Description = info.Description,
-            ChannelId = info.ChannelId ?? info.UploaderId ?? Platform,
+            ChannelId = channelId,
             Timestamps = new Timestamps()
             {
                 PublishedAt = DateTime.UtcNow,
@@ -106,28 +101,28 @@ public class VideoService
         });
         _unitOfWork_Public.Commit();
 
-        return id;
+        return await _videoRepository.ReloadEntityFromDBAsync(video);
     }
 
     internal async Task UpdateVideoAsync(Video video, UpdateVideoRequest updateVideoRequest)
     {
-        await _videoRepository.ReloadEntityFromDB(video);
+        await _videoRepository.ReloadEntityFromDBAsync(video);
 
         if (updateVideoRequest.Status.HasValue) video.Status = updateVideoRequest.Status.Value;
         if (updateVideoRequest.SourceStatus.HasValue) video.SourceStatus = updateVideoRequest.SourceStatus.Value;
         if (null != updateVideoRequest.Note) video.Note = updateVideoRequest.Note;
-        await _videoRepository.AddOrUpdate(video);
+        await _videoRepository.AddOrUpdateAsync(video);
         _unitOfWork_Public.Commit();
     }
 
     internal async Task RemoveVideoAsync(Video video)
     {
-        await _videoRepository.ReloadEntityFromDB(video);
+        await _videoRepository.ReloadEntityFromDBAsync(video);
         video.Status = VideoStatus.Deleted;
-        await _videoRepository.AddOrUpdate(video);
+        await _videoRepository.AddOrUpdateAsync(video);
         _unitOfWork_Public.Commit();
         if (null != video.Filename)
-            await _storageService.DeleteVideoBlob(video.Filename);
+            await _storageService.DeleteVideoBlobAsync(video.Filename);
     }
 
     /// <summary>
@@ -135,11 +130,11 @@ public class VideoService
     /// </summary>
     /// <param name="videoId"></param>
     /// <returns>token</returns>
-    internal async Task<string> GetToken(string videoId)
+    internal async Task<string> GetTokenAsync(string videoId, string channelId)
     {
-        Video? video = await GetVideoById(videoId);
+        Video? video = await _videoRepository.GetVideoByIdAndChannelIdAsync(videoId, channelId);
         return null == video
             ? throw new EntityNotFoundException($"Video {video} not found")
-            : await _storageService.GetToken(video);
+            : await _storageService.GetTokenAsync(video);
     }
 }

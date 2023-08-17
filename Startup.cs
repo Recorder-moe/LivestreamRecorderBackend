@@ -19,6 +19,7 @@ using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Minio;
+using Newtonsoft.Json.Serialization;
 using Serilog;
 using System;
 using System.Configuration;
@@ -32,6 +33,9 @@ namespace LivestreamRecorderBackend
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
+            builder.Services.AddMvc()
+                .AddNewtonsoftJson(o => o.SerializerSettings.ContractResolver = new DefaultContractResolver());
+
             builder.Services.AddHttpClient("client", config =>
             {
                 config.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(".NET", "6.0"));
@@ -48,7 +52,7 @@ namespace LivestreamRecorderBackend
             {
                 options
                     //.EnableSensitiveDataLogging()
-                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Public")!,
+                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("CosmosDB_Public_ConnectionString")!,
                                databaseName: "Public",
                                cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);
@@ -56,7 +60,7 @@ namespace LivestreamRecorderBackend
             {
                 options
                     //.EnableSensitiveDataLogging()
-                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("ConnectionStrings_Private")!,
+                    .UseCosmos(connectionString: Environment.GetEnvironmentVariable("CosmosDB_Private_ConnectionString")!,
                                databaseName: "Private",
                                cosmosOptionsAction: option => option.GatewayModeMaxConnectionLimit(380));
             }, ServiceLifetime.Singleton, ServiceLifetime.Singleton);

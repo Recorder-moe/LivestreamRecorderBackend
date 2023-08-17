@@ -7,6 +7,7 @@ public class EnableChannelRequest
     public string id { get; set; }
 #pragma warning restore IDE1006 // 命名樣式
 
+    public string Source { get; set; }
     public bool Monitoring { get; set; }
 }
 

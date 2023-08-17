@@ -16,11 +16,21 @@ services:
       - AzureWebJobsStorage=
       - Seq_ServerUrl=
       - Seq_ApiKey=
-      - ConnectionStrings_Private=
-      - ConnectionStrings_Public=
       - Blob_ConnectionString=
       - Blob_ContainerName=
       - Blob_ContainerNamePublic=
+      - S3_Endpoint=
+      - S3_AccessKey=
+      - S3_SecretKey=
+      - S3_Secure=
+      - S3_BucketNamePrivate=
+      - S3_BucketNamePublic=
+      - CosmosDB_Private_ConnectionString=
+      - CosmosDB_Public_ConnectionString=
+      - CouchDB_Endpoint=
+      - CouchDB_Username=
+      - CouchDB_Password=
       - Registration_allowed=true
       - GITHUB_PROVIDER_AUTHENTICATION_ID=
       - GITHUB_PROVIDER_AUTHENTICATION_SECRET=
+
