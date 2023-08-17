@@ -97,6 +97,7 @@ public class UserService
         catch (EntityNotFoundException)
         {
             user = MigrateUser(claimsPrincipal);
+            if (null != user) await _userRepository.AddOrUpdateAsync(user);
         }
 
         string? userEmail = user?.Email
