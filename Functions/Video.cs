@@ -80,7 +80,7 @@ public class Video
     [FunctionName(nameof(UpdateVideoAsync))]
     [OpenApiOperation(operationId: nameof(UpdateVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiRequestBody("application/json", typeof(UpdateVideoRequest), Required = true)]
-    [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Video), Description = "Video")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Video not found.")]
     public async Task<IActionResult> UpdateVideoAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req)
@@ -116,7 +116,7 @@ public class Video
             }
 
             await _videoService.UpdateVideoAsync(video, data);
-            return new OkResult();
+            return new OkObjectResult(video);
         }
         catch (Exception e)
         {
