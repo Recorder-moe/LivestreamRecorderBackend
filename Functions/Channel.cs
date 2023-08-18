@@ -246,5 +246,42 @@ public class Channel
             return new InternalServerErrorResult();
         }
     }
+
+    [FunctionName(nameof(HideChannelAsync))]
+    [OpenApiOperation(operationId: nameof(HideChannelAsync), tags: new[] { nameof(Channel) })]
+    [OpenApiRequestBody("application/json", typeof(HideChannelRequest), Required = true)]
+    [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
+    public async Task<IActionResult> HideChannelAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/HideChannel")] HttpRequest req)
+    {
+        try
+        {
+            var user = await _userService.AuthAndGetUserAsync(req.Headers);
+            if (null == user) return new UnauthorizedResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
+
+            string requestBody = string.Empty;
+            using (StreamReader streamReader = new(req.Body))
+            {
+                requestBody = await streamReader.ReadToEndAsync();
+            }
+            var data = JsonConvert.DeserializeObject<HideChannelRequest>(requestBody)
+                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            await _channelService.EditHidingAsync(data.id, data.Source, data.Hide);
+
+            return new OkResult();
+        }
+        catch (Exception e)
+        {
+            if (e is EntityNotFoundException)
+            {
+                return new BadRequestObjectResult(e.Message);
+            }
+
+            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(HideChannelAsync), e);
+            return new InternalServerErrorResult();
+        }
+    }
 }
 

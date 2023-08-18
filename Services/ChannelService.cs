@@ -215,4 +215,16 @@ public class ChannelService
         await _channelRepository.AddOrUpdateAsync(channel);
         _unitOfWork_Public.Commit();
     }
+
+    public async Task EditHidingAsync(string channelId, string source, bool hide)
+    {
+        var channel = await _channelRepository.GetChannelByIdAndSourceAsync(channelId, source);
+        if (null == channel)
+        {
+            throw new EntryPointNotFoundException($"Channel {channelId} not found.");
+        }
+        channel.Hide = hide;
+        await _channelRepository.AddOrUpdateAsync(channel);
+        _unitOfWork_Public.Commit();
+    }
 }
