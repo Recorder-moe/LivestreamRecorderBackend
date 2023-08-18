@@ -49,7 +49,7 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -92,7 +92,7 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -151,7 +151,7 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);
@@ -202,7 +202,7 @@ public class Video
             // Match domains starting with demo.
             if (Regex.IsMatch(_frontEndUri, @"^(http|https)://demo\.[a-zA-Z0-9\-]+(\.[a-zA-Z]{2,})+(/[^\s]*)?$")
                 && !user.IsAdmin)
-                return new ForbidResult();
+                return new StatusCodeResult(403);
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);

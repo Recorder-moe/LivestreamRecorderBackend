@@ -49,7 +49,7 @@ public class Channel
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -159,7 +159,7 @@ public class Channel
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -221,7 +221,7 @@ public class Channel
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
