@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -23,6 +24,7 @@ public class Video
     private readonly ILogger _logger;
     private readonly VideoService _videoService;
     private readonly UserService _userService;
+    private readonly string _frontEndUri;
 
     public Video(
         ILogger logger,
@@ -32,6 +34,7 @@ public class Video
         _logger = logger;
         _videoService = videoService;
         _userService = userService;
+        _frontEndUri = Environment.GetEnvironmentVariable("FrontEndUri") ?? "http://localhost:4200";
     }
 
     [FunctionName(nameof(AddVideoAsync))]
@@ -46,7 +49,7 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -89,7 +92,7 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             string requestBody = string.Empty;
             using (StreamReader streamReader = new(req.Body))
@@ -148,7 +151,7 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            if (!user.IsAdmin) return new StatusCodeResult(403);
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);
@@ -196,7 +199,10 @@ public class Video
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
-            if (!user.IsAdmin) return new ForbidResult();
+            // Match domains starting with demo.
+            if (Regex.IsMatch(_frontEndUri, @"^(http|https)://demo\.[a-zA-Z0-9\-]+(\.[a-zA-Z]{2,})+(/[^\s]*)?$")
+                && !user.IsAdmin)
+                return new StatusCodeResult(403);
 
             IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
             queryDictionary.TryGetValue("videoId", out var videoId);

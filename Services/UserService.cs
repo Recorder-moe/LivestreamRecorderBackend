@@ -97,6 +97,7 @@ public class UserService
         catch (EntityNotFoundException)
         {
             user = MigrateUser(claimsPrincipal);
+            if (null != user) await _userRepository.AddOrUpdateAsync(user);
         }
 
         string? userEmail = user?.Email
@@ -105,51 +106,54 @@ public class UserService
         string? userPicture = userEmail?.ToGravatar(200);
 
         bool hasUser = (await _userRepository.CountAsync()) > 0;
-        if (null == user
-            // First user
-            && (!hasUser
-                // Allow registration
-                || bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false") == true))
+        bool isRegistrationAllowed = bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false");
+
+        if (null == user)
         {
-            user = new User()
+            // First user or registration allowed
+            if (!hasUser || isRegistrationAllowed)
             {
-                id = Guid.NewGuid().ToString(),
-                UserName = userName ?? "Valuable User",
-                Email = userEmail ?? "",
-                Picture = userPicture,
-                RegistrationDate = DateTime.Now,
-                IsAdmin = !hasUser
-            };
+                user = new User()
+                {
+                    id = Guid.NewGuid().ToString().Replace("-", ""),
+                    UserName = userName ?? "Valuable User",
+                    Email = userEmail ?? "",
+                    Picture = userPicture,
+                    RegistrationDate = DateTime.Now,
+                    IsAdmin = !hasUser // First user is admin
+                };
 
-            string? uid = GetUID(claimsPrincipal);
+                string? uid = GetUID(claimsPrincipal);
 
-            switch (authType)
-            {
-                case "google":
-                    user.GoogleUID = uid;
-                    break;
-                case "github":
-                    user.GithubUID = uid;
-                    break;
-                case "aad":
-                    user.MicrosoftUID = uid;
-                    break;
-                case "discord":
-                    user.DiscordUID = uid;
-                    break;
-                default:
-                    _logger.Error("Authentication Type {authType} is not support!!", authType);
-                    throw new NotSupportedException($"Authentication Type {authType} is not support!!");
+                switch (authType)
+                {
+                    case "google":
+                        user.GoogleUID = uid;
+                        break;
+                    case "github":
+                        user.GithubUID = uid;
+                        break;
+                    case "aad":
+                        user.MicrosoftUID = uid;
+                        break;
+                    case "discord":
+                        user.DiscordUID = uid;
+                        break;
+                    default:
+                        _logger.Error("Authentication Type {authType} is not support!!", authType);
+                        throw new NotSupportedException($"Authentication Type {authType} is not support!!");
+                }
+
+                // Prevent GUID conflicts
+                if (_userRepository.Exists(user.id))
+                    user.id = Guid.NewGuid().ToString().Replace("-", "");
+
+                await _userRepository.AddOrUpdateAsync(user);
             }
-
-            // Prevent GUID conflicts
-            if (_userRepository.Exists(user.id)) user.id = Guid.NewGuid().ToString();
-
-            await _userRepository.AddOrUpdateAsync(user);
-        }
-        else if (null == user)
-        {
-            throw new EntityNotFoundException($"Cannot create new user {claimsPrincipal.Identity?.Name}. Registration for this site is not permitted.");
+            else
+            {
+                throw new EntityNotFoundException($"Cannot create new user {claimsPrincipal.Identity?.Name}. Registration for this site is not permitted.");
+            }
         }
 
         if (user.Picture != userPicture)
@@ -258,8 +262,7 @@ public class UserService
 
         if (null == principal.Identity.Name) return null;
 
-        var user = _userRepository.Where(p => p.Email == principal.FindFirstValue(ClaimTypes.Email)).SingleOrDefault()
-                    ?? _userRepository.Where(p => p.Email.Contains(principal.Identity.Name)).SingleOrDefault();
+        var user = _userRepository.Where(p => p.Email == principal.FindFirstValue(ClaimTypes.Email)).SingleOrDefault();
         if (null != user)
         {
             switch (authType)
