@@ -51,10 +51,7 @@ public class User
 
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
-            return new JsonResult(result, new JsonSerializerSettings()
-            {
-                ContractResolver = new DefaultContractResolver()
-            });
+            return new OkObjectResult(result);
         }
         catch (Exception e)
         {
@@ -121,10 +118,7 @@ public class User
             user = await _userService.UpdateUserAsync(data, user);
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
-            return new JsonResult(result, new JsonSerializerSettings()
-            {
-                ContractResolver = new DefaultContractResolver()
-            });
+            return new OkObjectResult(result);
         }
         catch (Exception e)
         {
