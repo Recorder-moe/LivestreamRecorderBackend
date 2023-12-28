@@ -15,9 +15,9 @@ public static class NameHelper
                 => Platform switch
                 {
                     "Youtube" => channelId, // Youtube channelId already starts with "UC"
-                    "Twitch" => channelId.StartsWith("TW") ? channelId[2..] : channelId,
-                    "Twitcasting" => channelId.StartsWith("TC") ? channelId[2..] : channelId,
-                    "FC2" => channelId.StartsWith("FC") ? channelId[2..] : channelId,
+                    "Twitch" => channelId[2..],
+                    "Twitcasting" => channelId[2..],
+                    "FC2" => channelId[2..],
                     _ => throw new NotImplementedException(),
                 };
 
@@ -25,9 +25,9 @@ public static class NameHelper
                 => Platform switch
                 {
                     "Youtube" => channelId, // Youtube channelId always starts with "UC"
-                    "Twitch" => channelId.StartsWith("TW") ? channelId : "TW" + channelId,
-                    "Twitcasting" => channelId.StartsWith("TC") ? channelId : "TC" + channelId,
-                    "FC2" => channelId.StartsWith("FC") ? channelId : "FC" + channelId,
+                    "Twitch" => "TW" + channelId,
+                    "Twitcasting" => "TC" + channelId,
+                    "FC2" => "FC" + channelId,
                     _ => throw new NotImplementedException(),
                 };
         }
@@ -37,20 +37,20 @@ public static class NameHelper
             public static string PlatformType(string videoId, string Platform)
                 => Platform switch
                 {
-                    "Youtube" => videoId.StartsWith('Y') ? videoId[1..] : videoId,
-                    "Twitch" => videoId.StartsWith("TW") ? videoId[2..] : videoId,
-                    "Twitcasting" => videoId.StartsWith("TC") ? videoId[2..] : videoId,
-                    "FC2" => videoId.StartsWith("FC") ? videoId[2..] : videoId,
+                    "Youtube" => videoId[1..],
+                    "Twitch" => videoId[2..],
+                    "Twitcasting" => videoId[2..],
+                    "FC2" => videoId[2..],
                     _ => throw new NotImplementedException(),
                 };
 
             public static string DatabaseType(string videoId, string Platform)
                 => Platform switch
                 {
-                    "Youtube" => videoId.StartsWith('Y') ? videoId : "Y" + videoId,
-                    "Twitch" => videoId.StartsWith("TW") ? videoId : "TW" + videoId,
-                    "Twitcasting" => videoId.StartsWith("TC") ? videoId : "TC" + videoId,
-                    "FC2" => videoId.StartsWith("FC") ? videoId : "FC" + videoId,
+                    "Youtube" => "Y" + videoId,
+                    "Twitch" => "TW" + videoId,
+                    "Twitcasting" => "TC" + videoId,
+                    "FC2" => "FC" + videoId,
                     _ => throw new NotImplementedException(),
                 };
         }
