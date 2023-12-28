@@ -8,6 +8,7 @@ using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.Video;
+using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Interfaces;
 using Serilog;
 using System;
@@ -72,12 +73,8 @@ public class VideoService
         var id = info.Id;
         string channelId = info.ChannelId ?? info.UploaderId ?? Platform;
 
-        // Youtube video id may start with '_' which is not allowed in CouchDB.
-        // So we add a prefix 'Y' to it.
-        if (Platform == "Youtube")
-        {
-            id = "Y" + id;
-        }
+        id = NameHelper.ChangeId.VideoId.DatabaseType(id, Platform);
+        channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, Platform);
 
         if (null != await _videoRepository.GetVideoByIdAndChannelIdAsync(id, channelId))
         {

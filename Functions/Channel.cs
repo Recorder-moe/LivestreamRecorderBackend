@@ -110,6 +110,7 @@ public class Channel
                     channelName = data.Name ?? channelId;
                     break;
             }
+            channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, Platform);
 
             channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, Platform)
                         ?? await _channelService.AddChannelAsync(id: channelId,
