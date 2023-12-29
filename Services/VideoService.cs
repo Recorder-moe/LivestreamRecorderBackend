@@ -72,6 +72,18 @@ public class VideoService
 
         var id = info.Id;
         string channelId = info.ChannelId ?? info.UploaderId ?? Platform;
+        var islive = info.IsLive ?? false;
+
+        if (Platform == "Twitch" && id.StartsWith("v"))
+        {
+            id = id[1..];
+        }
+
+        // Twitch and FC2 videos id are seperate from live stream, so always set islive to false.
+        if (Platform == "Twitch" || Platform == "FC2")
+        {
+            islive = false;
+        }
 
         id = NameHelper.ChangeId.VideoId.DatabaseType(id, Platform);
         channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, Platform);
@@ -88,6 +100,7 @@ public class VideoService
             Source = Platform,
             Status = VideoStatus.Pending,
             SourceStatus = VideoStatus.Exist,
+            IsLiveStream = islive,
             Title = info.Title,
             Description = info.Description,
             ChannelId = channelId,
