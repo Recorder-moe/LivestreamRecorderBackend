@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using YoutubeDLSharp;
 using YoutubeDLSharp.Helpers;
 using YoutubeDLSharp.Options;
+using YtdlpVideoData = LivestreamRecorderBackend.Models.YtdlpVideoData._YtdlpVideoData;
 
 namespace LivestreamRecorderBackend.Helper;
 

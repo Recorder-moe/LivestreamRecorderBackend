@@ -1,11 +1,11 @@
-﻿using LivestreamRecorderBackend.Models;
-using Serilog;
+﻿using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FC2MemberData = LivestreamRecorderBackend.Models.FC2MemberData._FC2MemberData;
 
 namespace LivestreamRecorderBackend.Services;
 
