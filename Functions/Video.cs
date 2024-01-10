@@ -7,12 +7,12 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -56,7 +56,7 @@ public class Video
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            AddVideoRequest data = JsonConvert.DeserializeObject<AddVideoRequest>(requestBody)
+            AddVideoRequest data = JsonSerializer.Deserialize<AddVideoRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (string.IsNullOrEmpty(data.Url))
@@ -99,7 +99,7 @@ public class Video
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            UpdateVideoRequest data = JsonConvert.DeserializeObject<UpdateVideoRequest>(requestBody)
+            UpdateVideoRequest data = JsonSerializer.Deserialize<UpdateVideoRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (string.IsNullOrEmpty(data.id))

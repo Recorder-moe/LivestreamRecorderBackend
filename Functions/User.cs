@@ -8,14 +8,13 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -112,7 +111,7 @@ public class User
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            UpdateUserRequest data = JsonConvert.DeserializeObject<UpdateUserRequest>(requestBody)
+            UpdateUserRequest data = JsonSerializer.Deserialize<UpdateUserRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             user = await _userService.UpdateUserAsync(data, user);

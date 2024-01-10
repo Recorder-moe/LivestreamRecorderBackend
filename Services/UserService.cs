@@ -85,8 +85,8 @@ public class UserService
     internal async Task CreateOrUpdateUserWithOAuthClaimsAsync(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
-                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Name)
-                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.GivenName);
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.GivenName)?.Value;
         string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user;
@@ -101,7 +101,7 @@ public class UserService
         }
 
         string? userEmail = user?.Email
-                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Email)
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.Email)?.Value
                             ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
@@ -262,7 +262,9 @@ public class UserService
 
         if (null == principal.Identity.Name) return null;
 
-        var user = _userRepository.Where(p => p.Email == principal.FindFirstValue(ClaimTypes.Email)).SingleOrDefault();
+        string? email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        if (null == email) return null;
+        var user = _userRepository.Where(p => p.Email == email).SingleOrDefault();
         if (null != user)
         {
             switch (authType)

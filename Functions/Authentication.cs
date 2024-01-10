@@ -53,8 +53,8 @@ public class Authentication
             Logger.Error(error);
             throw new Exception(error);
         }
-
-        var backEnd = req.Headers.Referer.FirstOrDefault() ?? req.GetDisplayUrl();
+        req.Headers.TryGetValue("Referer", out var _backEnd);
+        string backEnd = _backEnd.ToString() ?? req.GetDisplayUrl();
 
         string idToken = await _githubService.GetIdTokenAsync(
             authorization_code: code,

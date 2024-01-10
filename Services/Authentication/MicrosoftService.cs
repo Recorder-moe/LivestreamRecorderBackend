@@ -31,12 +31,12 @@ public class MicrosoftService : IAuthenticationHandlerService
         string json = await response.Content.ReadAsStringAsync();
         using var payload = JsonDocument.Parse(json);
         var identity = new ClaimsIdentity("aad");
-        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetString("sub") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetString("name") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.GivenName, payload.RootElement.GetString("given_name") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Surname, payload.RootElement.GetString("family_name") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetString("email") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim("picture", payload.RootElement.GetString("picture") ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetProperty("sub").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetProperty("name").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.GivenName, payload.RootElement.GetProperty("given_name").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Surname, payload.RootElement.GetProperty("family_name").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetProperty("email").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim("picture", payload.RootElement.GetProperty("picture").GetString() ?? "", ClaimValueTypes.String));
 
         return new ClaimsPrincipal(identity);
     }

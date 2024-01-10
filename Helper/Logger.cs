@@ -1,10 +1,10 @@
-﻿using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using System;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace LivestreamRecorderBackend.Helper;
 
@@ -49,6 +49,6 @@ public static class Log
     }
 
     public static void LogClaimsPrincipal(ClaimsPrincipal principal)
-        => Logger.Debug(JsonConvert.SerializeObject(principal.Claims.Select(p => (p.Type, p.Value)).ToArray()));
+        => Logger.Debug(JsonSerializer.Serialize(principal.Claims.Select(p => (p.Type, p.Value)).ToArray()));
 
 }
