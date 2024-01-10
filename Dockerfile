@@ -82,6 +82,11 @@ ENV CouchDB_Endpoint=
 ENV CouchDB_Username=
 ENV CouchDB_Password=
 
+# Support arbitrary user ids (OpenShift best practice)
+# https://docs.openshift.com/container-platform/4.14/openshift_images/create-images.html#use-uid_create-images
+RUN chgrp -R 0 /azure-functions-host && \
+    chmod -R g=u /azure-functions-host
+
 # Create user
 RUN groupadd -g $UID $UID && \
     useradd -l -g $UID -u $UID -G $UID $UID
