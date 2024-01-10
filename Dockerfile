@@ -50,6 +50,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3=3.9.2-3
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+COPY --link --from=mwader/static-ffmpeg:6.1.1 /ffmpeg /usr/bin/
+COPY --link --from=mwader/static-ffmpeg:6.1.1 /ffprobe /usr/bin/
+
 ARG UID
 
 EXPOSE 8080
