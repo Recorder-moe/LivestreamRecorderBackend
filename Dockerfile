@@ -52,7 +52,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3=3.9.2-3
 
 ARG UID
 
-EXPOSE 80
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
 
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot
 ENV AzureFunctionsJobHost__Logging__Console__IsEnabled=true

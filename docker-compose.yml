@@ -7,7 +7,7 @@ services:
     #   context: .
     #   dockerfile: ./Dockerfile
     ports:
-      - 80:80
+      - 80:8080
     environment:
       - CORS_SUPPORT_CREDENTIALS=true
       - FUNCTIONS_WORKER_RUNTIME=dotnet
