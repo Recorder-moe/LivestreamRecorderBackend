@@ -53,12 +53,12 @@ public class Authentication
             Logger.Error(error);
             throw new Exception(error);
         }
-        req.Headers.TryGetValue("Referer", out var _backEnd);
-        string backEnd = _backEnd.ToString() ?? req.GetDisplayUrl();
+        req.Headers.TryGetValue("Referer", out var _backend);
+        string backend = _backend.Count != 0 ? _backend.First() : req.GetDisplayUrl();
 
         string idToken = await _githubService.GetIdTokenAsync(
             authorization_code: code,
-            redirectUri: AuthenticationService.GetRedirectUri(backEnd, "api/signin-github"));
+            redirectUri: AuthenticationService.GetRedirectUri(backend, "api/signin-github"));
 
         // Treat it as an implicit flow-style URL so that my front-end can easily handle it with packages (angular-oauth2-oidc).
         return new RedirectResult($"{_frontEndUri}/pages/login-redirect#state={HttpUtility.UrlEncode(state)}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
