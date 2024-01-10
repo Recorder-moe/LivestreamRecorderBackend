@@ -13,6 +13,7 @@ services:
       - FUNCTIONS_WORKER_RUNTIME=dotnet
       - CORS_ALLOWED_ORIGINS=["https://localhost:4200"]
       - FrontEndUri=https://localhost:4200
+      - StorageService=S3
       - AzureWebJobsStorage=
       - Seq_ServerUrl=
       - Seq_ApiKey=

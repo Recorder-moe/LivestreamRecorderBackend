@@ -1,23 +1,56 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS installer-env
-
+# syntax=docker/dockerfile:1
+ARG UID=1001
 ARG DatabaseService="ApacheCouchDB"
 
-COPY . /src/dotnet-function-app
-RUN cd /src/dotnet-function-app && \
-    mkdir -p /home/site/wwwroot && \
-    dotnet publish *.csproj --output /home/site/wwwroot --configuration ${DatabaseService}_Release
+### Build Python
+FROM debian:11 as build-python
 
-FROM mcr.microsoft.com/azure-functions/dotnet:4
-
-COPY --from=mwader/static-ffmpeg:6.0 /ffmpeg /usr/local/bin/
-COPY --from=mwader/static-ffmpeg:6.0 /ffprobe /usr/local/bin/
-
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev python3-distutils python3-pip build-essential aria2 && \
-    pip install --upgrade yt-dlp mutagen pycryptodomex websockets brotli certifi && \
-    apt-get remove --purge -y build-essential python3-dev python3-distutils python3-pip && \
+RUN apt-get update && apt-get install -y --no-install-recommends python3=3.9.2-3 python3-pip && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# RUN mount cache for multi-arch: https://github.com/docker/buildx/issues/549#issuecomment-1788297892
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+WORKDIR /app
+
+# Install under /root/.local
+ENV PIP_USER="true"
+ARG PIP_NO_WARN_SCRIPT_LOCATION=0
+ARG PIP_ROOT_USER_ACTION="ignore"
+
+RUN --mount=type=cache,id=pip-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/root/.cache/pip \
+    pip3 install yt-dlp && \
+    # Cleanup
+    find "/root/.local" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
+    find "/root/.local" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ;
+
+### Build .NET
+FROM  mcr.microsoft.com/dotnet/sdk:6.0 AS build-dotnet
+
+WORKDIR /src
+
+RUN --mount=source=LivestreamRecorderBackend.csproj,target=LivestreamRecorderBackend.csproj \
+    --mount=source=LivestreamRecorder.DB/LivestreamRecorder.DB.csproj,target=LivestreamRecorder.DB/LivestreamRecorder.DB.csproj \
+    dotnet restore "LivestreamRecorderBackend.csproj"
+
+ARG DatabaseService
+ARG BUILD_CONFIGURATION=${DatabaseService}_Release
+
+RUN --mount=source=.,target=.,rw \
+    dotnet publish "LivestreamRecorderBackend.csproj" -c $BUILD_CONFIGURATION -o /app/publish
+
+### Final image
+FROM mcr.microsoft.com/azure-functions/dotnet:4
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3=3.9.2-3 dumb-init=1.2.5-1 && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG UID
 
 EXPOSE 80
 
@@ -49,4 +82,18 @@ ENV CouchDB_Endpoint=
 ENV CouchDB_Username=
 ENV CouchDB_Password=
 
-COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]
+# Create user
+RUN groupadd -g $UID $UID && \
+    useradd -l -g $UID -u $UID -G $UID $UID
+
+COPY --chown=$UID:0 --chmod=774 \
+    --from=build-python /root/.local /home/$UID/.local
+ENV PATH="/home/$UID/.local/bin:$PATH"
+ENV PYTHONPATH "/home/$UID/.local/lib/python3.9/site-packages" 
+
+COPY --chown=$UID:0 --chmod=774 \
+    --from=build-dotnet /app/publish /home/site/wwwroot
+
+USER $UID
+
+ENTRYPOINT [ "dumb-init", "--", "/opt/startup/start_nonappservice.sh" ]
