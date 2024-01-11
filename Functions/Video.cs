@@ -65,7 +65,8 @@ public class Video
             }
 
             var video = await _videoService.AddVideoAsync(data.Url);
-            return new OkObjectResult(video);
+            var resultdata = JsonSerializer.SerializeToUtf8Bytes(video);
+            return new FileContentResult(resultdata, "application/json");
         }
         catch (Exception e)
         {
@@ -119,7 +120,8 @@ public class Video
             }
 
             await _videoService.UpdateVideoAsync(video, data);
-            return new OkObjectResult(video);
+            var resultdata = JsonSerializer.SerializeToUtf8Bytes(video);
+            return new FileContentResult(resultdata, "application/json");
         }
         catch (Exception e)
         {

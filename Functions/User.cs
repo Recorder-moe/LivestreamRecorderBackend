@@ -50,7 +50,8 @@ public class User
 
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
-            return new OkObjectResult(result);
+            var data = JsonSerializer.SerializeToUtf8Bytes(result);
+            return new FileContentResult(data, "application/json");
         }
         catch (Exception e)
         {
@@ -118,7 +119,8 @@ public class User
             user = await _userService.UpdateUserAsync(data, user);
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
-            return new OkObjectResult(result);
+            var resultdata = JsonSerializer.SerializeToUtf8Bytes(result);
+            return new FileContentResult(resultdata, "application/json");
         }
         catch (Exception e)
         {
