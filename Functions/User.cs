@@ -71,7 +71,8 @@ public class User
         {
             if (!req.Headers.TryGetValue("Authorization", out var authHeader)
                 || authHeader.Count == 0) return new UnauthorizedResult();
-            var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+            var token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+            if (null == token) return new UnauthorizedResult();
             var principal = await _authenticationService.GetUserInfoFromTokenAsync(token);
 
             if (null == principal

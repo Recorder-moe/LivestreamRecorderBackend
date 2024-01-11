@@ -54,7 +54,7 @@ public class Authentication
             throw new Exception(error);
         }
         req.Headers.TryGetValue("Referer", out var _backend);
-        string backend = _backend.Count != 0 ? _backend.First() : req.GetDisplayUrl();
+        string backend = _backend.Count != 0 ? _backend.First() ?? "" : req.GetDisplayUrl();
 
         string idToken = await _githubService.GetIdTokenAsync(
             authorization_code: code,

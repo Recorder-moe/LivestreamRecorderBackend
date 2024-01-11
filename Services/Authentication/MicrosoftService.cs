@@ -32,9 +32,9 @@ public class MicrosoftService : IAuthenticationHandlerService
         using var payload = JsonDocument.Parse(json);
         var identity = new ClaimsIdentity("aad");
         identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetProperty("sub").GetString() ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetProperty("name").GetString() ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.GivenName, payload.RootElement.GetProperty("given_name").GetString() ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Surname, payload.RootElement.GetProperty("family_name").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.TryGetProperty("name", out var ele) ? ele.GetProperty("name").GetString() ?? "" : "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.GivenName, payload.RootElement.GetProperty("givenname").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Surname, payload.RootElement.GetProperty("familyname").GetString() ?? "", ClaimValueTypes.String));
         identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetProperty("email").GetString() ?? "", ClaimValueTypes.String));
         identity.AddClaim(new Claim("picture", payload.RootElement.GetProperty("picture").GetString() ?? "", ClaimValueTypes.String));
 

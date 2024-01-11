@@ -297,8 +297,8 @@ public class UserService
     {
         if (!headers.TryGetValue("Authorization", out var authHeader)
             || authHeader.Count == 0) return Task.FromResult<User?>(null);
-        var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
-        return AuthAndGetUserAsync(token);
+        var token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+        return null == token ? Task.FromResult<User?>(null) : AuthAndGetUserAsync(token);
     }
 
     public async Task<User?> AuthAndGetUserAsync(string token)
