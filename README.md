@@ -1,5 +1,7 @@
 # LivestreamRecorderBackend
 
+[![DeepSource](https://app.deepsource.com/gh/Recorder-moe/LivestreamRecorderBackend.svg/?label=active+issues&show_trend=true&token=hZ0XyL7MHv2tjEBBMeMixiwq)](https://app.deepsource.com/gh/Recorder-moe/LivestreamRecorderBackend/)
+
 This is the backend azure function for the [Recorder.moe](https://recorder.moe) livestream recorder project.
 
 ## Settings
