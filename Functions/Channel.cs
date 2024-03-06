@@ -60,8 +60,6 @@ public class Channel
             }
             var data = JsonSerializer.Deserialize<AddChannelRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
-
-            LivestreamRecorder.DB.Models.Channel channel;
             var channelId = "";
             var channelName = "";
             var url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(new[] { '/' });
@@ -89,6 +87,7 @@ public class Channel
                 throw new InvalidOperationException($"Unsupported platform for {url}.");
             }
 
+            // skipcq: CS-R1116
             switch (Platform)
             {
                 case "Youtube":
@@ -102,9 +101,9 @@ public class Channel
                     channelId = info.ChannelId;
                     channelName = info.Uploader;
                     break;
-                case "Twitcasting":
-                case "Twitch":
-                case "FC2":
+                // case "Twitcasting":
+                // case "Twitch":
+                // case "FC2":
                 default:
                     channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
                     channelName = data.Name ?? channelId;
@@ -112,10 +111,10 @@ public class Channel
             }
             channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, Platform);
 
-            channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, Platform)
-                        ?? await _channelService.AddChannelAsync(id: channelId,
-                                                                 source: Platform,
-                                                                 channelName: channelName);
+            var channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, Platform)
+                          ?? await _channelService.AddChannelAsync(id: channelId,
+                                                                  source: Platform,
+                                                                  channelName: channelName);
 
             _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
@@ -152,6 +151,7 @@ public class Channel
     [OpenApiOperation(operationId: nameof(UpdateChannel_Http), tags: new[] { nameof(Channel) })]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
+    // skipcq: CS-R1073
     public async Task<IActionResult> UpdateChannel_Http(
             [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")] HttpRequest req,
             [DurableClient] IDurableClient starter)

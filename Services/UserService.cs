@@ -119,7 +119,7 @@ public class UserService
                     UserName = userName ?? "Valuable User",
                     Email = userEmail ?? "",
                     Picture = userPicture,
-                    RegistrationDate = DateTime.Now,
+                    RegistrationDate = DateTime.UtcNow,
                     IsAdmin = !hasUser // First user is admin
                 };
 
@@ -325,10 +325,7 @@ public class UserService
                 _logger.Error(e, "User not found!!");
                 return null;
             }
-            else
-            {
-                throw;
-            }
+            throw;
         }
     }
 }

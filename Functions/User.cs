@@ -65,6 +65,7 @@ public class User
     [OpenApiOperation(operationId: nameof(CreateOrUpdateUser), tags: new[] { nameof(User) })]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
+    // skipcq: CS-R1073
     public async Task<IActionResult> CreateOrUpdateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")] HttpRequest req)
     {

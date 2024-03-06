@@ -174,7 +174,7 @@ internal static partial class YoutubeDL
             var res = await ytdl.RunVideoDataFetch_Alt(url, overrideOptions: optionSet, ct: cancellation);
             if (!res.Success)
             {
-                throw new Exception(string.Join(' ', res.ErrorOutput));
+                throw new InvalidOperationException($"Failed to fetch video data from yt-dlp for URL: {url}. Errors: {string.Join(' ', res.ErrorOutput)}");
             }
 
             YtdlpVideoData videoData = res.Data;

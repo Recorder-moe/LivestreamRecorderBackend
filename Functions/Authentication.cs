@@ -36,6 +36,7 @@ public class Authentication
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.InternalServerError, Description = "Exception")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "BadRequest")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Redirect, Description = "Success")]
+    // skipcq: CS-R1073
     public async Task<IActionResult> GithubSignin(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "signin-github")] HttpRequest req)
     {
@@ -51,7 +52,7 @@ public class Authentication
         if (!string.IsNullOrEmpty(error))
         {
             Logger.Error(error);
-            throw new Exception(error);
+            throw new InvalidOperationException(error);
         }
         req.Headers.TryGetValue("Referer", out var _backend);
         string backend = _backend.Count != 0 ? _backend.First() ?? "" : req.GetDisplayUrl();

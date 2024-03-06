@@ -109,6 +109,7 @@ public class ChannelService
                     }
                     break;
                 default:
+                    // Only Youtube and FC2 are supported
                     break;
             }
         }

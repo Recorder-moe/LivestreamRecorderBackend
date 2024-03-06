@@ -130,7 +130,8 @@ public class Video
                 _logger.Warning(e, e.Message);
                 return new BadRequestObjectResult(e.Message);
             }
-            else if (e is EntityNotFoundException)
+
+            if (e is EntityNotFoundException)
             {
                 return new BadRequestObjectResult(e.Message);
             }
@@ -179,7 +180,8 @@ public class Video
                 _logger.Warning(e, e.Message);
                 return new BadRequestObjectResult(e.Message);
             }
-            else if (e is EntityNotFoundException)
+
+            if (e is EntityNotFoundException)
             {
                 return new BadRequestObjectResult(e.Message);
             }
@@ -194,6 +196,7 @@ public class Video
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The Token.")]
+    // skipcq: CS-R1073
     public async Task<IActionResult> GetToken(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/Token")] HttpRequest req)
     {
