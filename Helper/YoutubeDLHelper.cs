@@ -31,6 +31,7 @@ internal static partial class YoutubeDL
     /// <param name="overrideOptions"></param>
     /// <returns></returns>
 #pragma warning disable CA1068 // CancellationToken 參數必須位於最後
+    // skipcq: CS-R1073
     public static async Task<RunResult<YtdlpVideoData>> RunVideoDataFetch_Alt(this YoutubeDLSharp.YoutubeDL ytdl, string url, CancellationToken ct = default, bool flat = true, bool fetchComments = false, OptionSet overrideOptions = null)
 #pragma warning restore CA1068 // CancellationToken 參數必須位於最後
     {
@@ -57,6 +58,7 @@ internal static partial class YoutubeDL
             optionSet = optionSet.OverrideOptions(overrideOptions);
         }
 
+        // skipcq: CS-W1028
         YtdlpVideoData videoData = null;
         YoutubeDLProcess youtubeDLProcess = new(ytdl.YoutubeDLPath);
         youtubeDLProcess.OutputReceived += (o, e) =>
@@ -177,7 +179,7 @@ internal static partial class YoutubeDL
                 throw new InvalidOperationException($"Failed to fetch video data from yt-dlp for URL: {url}. Errors: {string.Join(' ', res.ErrorOutput)}");
             }
 
-            YtdlpVideoData videoData = res.Data;
+            YtdlpVideoData? videoData = res.Data;
             return videoData;
         }
         catch (Exception e)
