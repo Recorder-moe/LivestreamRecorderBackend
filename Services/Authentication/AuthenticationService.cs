@@ -41,24 +41,28 @@ public class AuthenticationService
                 result = await _googleService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
+            // skipcq: CS-R1008
             catch (Exception) { }
             try
             {
                 result = await _githubService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
+            // skipcq: CS-R1008
             catch (Exception) { }
             try
             {
                 result = await _microsoftService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
+            // skipcq: CS-R1008
             catch (Exception) { }
             try
             {
                 result = await _discordService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
+            // skipcq: CS-R1008
             catch (Exception) { }
         }
         finally
@@ -81,6 +85,7 @@ public class AuthenticationService
     /// </summary>
     /// <param name="request"></param>
     /// <param name="route"></param>
+    // skipcq: CS-A1000
     internal static string GetRedirectUri(string requestUrl, string route)
     {
         Uri uri = new(requestUrl);

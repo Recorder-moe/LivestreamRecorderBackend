@@ -1,10 +1,9 @@
 ﻿using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace LivestreamRecorderBackend.Interfaces
+namespace LivestreamRecorderBackend.Interfaces;
+
+public interface IAuthenticationHandlerService
 {
-    public interface IAuthenticationHandlerService
-    {
-        Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token);
-    }
+    Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token);
 }

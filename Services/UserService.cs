@@ -85,8 +85,8 @@ public class UserService
     internal async Task CreateOrUpdateUserWithOAuthClaimsAsync(ClaimsPrincipal claimsPrincipal)
     {
         string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
-                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Name)
-                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.GivenName);
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.GivenName)?.Value;
         string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user;
@@ -101,7 +101,7 @@ public class UserService
         }
 
         string? userEmail = user?.Email
-                            ?? claimsPrincipal.FindFirstValue(ClaimTypes.Email)
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.Email)?.Value
                             ?? claimsPrincipal.Identity?.Name;
         string? userPicture = userEmail?.ToGravatar(200);
 
@@ -119,7 +119,7 @@ public class UserService
                     UserName = userName ?? "Valuable User",
                     Email = userEmail ?? "",
                     Picture = userPicture,
-                    RegistrationDate = DateTime.Now,
+                    RegistrationDate = DateTime.UtcNow,
                     IsAdmin = !hasUser // First user is admin
                 };
 
@@ -262,7 +262,9 @@ public class UserService
 
         if (null == principal.Identity.Name) return null;
 
-        var user = _userRepository.Where(p => p.Email == principal.FindFirstValue(ClaimTypes.Email)).SingleOrDefault();
+        string? email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        if (null == email) return null;
+        var user = _userRepository.Where(p => p.Email == email).SingleOrDefault();
         if (null != user)
         {
             switch (authType)
@@ -295,8 +297,8 @@ public class UserService
     {
         if (!headers.TryGetValue("Authorization", out var authHeader)
             || authHeader.Count == 0) return Task.FromResult<User?>(null);
-        var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
-        return AuthAndGetUserAsync(token);
+        var token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+        return null == token ? Task.FromResult<User?>(null) : AuthAndGetUserAsync(token);
     }
 
     public async Task<User?> AuthAndGetUserAsync(string token)
@@ -323,10 +325,7 @@ public class UserService
                 _logger.Error(e, "User not found!!");
                 return null;
             }
-            else
-            {
-                throw;
-            }
+            throw;
         }
     }
 }

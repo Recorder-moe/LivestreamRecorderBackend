@@ -32,10 +32,10 @@ public class DiscordService : IAuthenticationHandlerService
         string json = await response.Content.ReadAsStringAsync();
         var payload = JsonDocument.Parse(json);
         var identity = new ClaimsIdentity("discord");
-        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetString("id") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetString("username") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetString("email") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim("picture", $"https://cdn.discordapp.com/avatars/{payload.RootElement.GetString("id")}/{payload.RootElement.GetString("avatar")}.png" ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetProperty("id").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetProperty("username").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetProperty("email").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim("picture", $"https://cdn.discordapp.com/avatars/{payload.RootElement.GetProperty("id").GetString()}/{payload.RootElement.GetProperty("avatar").GetString()}.png" ?? "", ClaimValueTypes.String));
 
         return new ClaimsPrincipal(identity);
     }

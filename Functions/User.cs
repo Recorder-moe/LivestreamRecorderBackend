@@ -8,14 +8,13 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -51,7 +50,8 @@ public class User
 
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
-            return new OkObjectResult(result);
+            var data = JsonSerializer.SerializeToUtf8Bytes(result);
+            return new FileContentResult(data, "application/json");
         }
         catch (Exception e)
         {
@@ -65,6 +65,7 @@ public class User
     [OpenApiOperation(operationId: nameof(CreateOrUpdateUser), tags: new[] { nameof(User) })]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
+    // skipcq: CS-R1073
     public async Task<IActionResult> CreateOrUpdateUser(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")] HttpRequest req)
     {
@@ -72,7 +73,8 @@ public class User
         {
             if (!req.Headers.TryGetValue("Authorization", out var authHeader)
                 || authHeader.Count == 0) return new UnauthorizedResult();
-            var token = authHeader.First().Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+            var token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+            if (null == token) return new UnauthorizedResult();
             var principal = await _authenticationService.GetUserInfoFromTokenAsync(token);
 
             if (null == principal
@@ -112,13 +114,14 @@ public class User
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            UpdateUserRequest data = JsonConvert.DeserializeObject<UpdateUserRequest>(requestBody)
+            UpdateUserRequest data = JsonSerializer.Deserialize<UpdateUserRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             user = await _userService.UpdateUserAsync(data, user);
             var result = new GetUserResponse();
             if (null != user) result.InjectFrom(user);
-            return new OkObjectResult(result);
+            var resultdata = JsonSerializer.SerializeToUtf8Bytes(result);
+            return new FileContentResult(resultdata, "application/json");
         }
         catch (Exception e)
         {

@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
+using System.Text.Json.Serialization;
 #nullable disable warnings
 
 namespace LivestreamRecorderBackend.DTO.User;
@@ -7,34 +7,34 @@ namespace LivestreamRecorderBackend.DTO.User;
 internal class GetUserResponse
 {
 #pragma warning disable IDE1006 // 命名樣式
-    [JsonProperty(nameof(id))]
+    [JsonPropertyName(nameof(id))]
     public string id { get; set; }
 #pragma warning restore IDE1006 // 命名樣式
 
-    [JsonProperty(nameof(UserName))]
+    [JsonPropertyName(nameof(UserName))]
     public string UserName { get; set; }
 
-    [JsonProperty(nameof(Email))]
+    [JsonPropertyName(nameof(Email))]
     public string Email { get; set; }
 
-    [JsonProperty(nameof(Picture))]
+    [JsonPropertyName(nameof(Picture))]
     public string? Picture { get; set; }
 
-    [JsonProperty(nameof(RegistrationDate))]
+    [JsonPropertyName(nameof(RegistrationDate))]
     public DateTime RegistrationDate { get; set; }
 
-    [JsonProperty(nameof(Note))]
+    [JsonPropertyName(nameof(Note))]
     public string? Note { get; set; }
 
-    [JsonProperty(nameof(GoogleUID), NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName(nameof(GoogleUID))]
     public string? GoogleUID { get; set; }
 
-    [JsonProperty(nameof(GithubUID), NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName(nameof(GithubUID))]
     public string? GithubUID { get; set; }
 
-    [JsonProperty(nameof(MicrosoftUID), NullValueHandling = NullValueHandling.Ignore)]
+    [JsonPropertyName(nameof(MicrosoftUID))]
     public string? MicrosoftUID { get; set; }
 
-    [JsonProperty(nameof(IsAdmin))]
+    [JsonPropertyName(nameof(IsAdmin))]
     public bool IsAdmin { get; set; }
 }

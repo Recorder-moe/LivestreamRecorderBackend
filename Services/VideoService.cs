@@ -8,6 +8,7 @@ using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.Video;
+using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Interfaces;
 using Serilog;
 using System;
@@ -71,13 +72,21 @@ public class VideoService
 
         var id = info.Id;
         string channelId = info.ChannelId ?? info.UploaderId ?? Platform;
+        var islive = info.IsLive ?? false;
 
-        // Youtube video id may start with '_' which is not allowed in CouchDB.
-        // So we add a prefix 'Y' to it.
-        if (Platform == "Youtube")
+        if (Platform == "Twitch" && id.StartsWith("v"))
         {
-            id = "Y" + id;
+            id = id[1..];
         }
+
+        // Twitch and FC2 videos id are seperate from live stream, so always set islive to false.
+        if (Platform == "Twitch" || Platform == "FC2")
+        {
+            islive = false;
+        }
+
+        id = NameHelper.ChangeId.VideoId.DatabaseType(id, Platform);
+        channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, Platform);
 
         if (null != await _videoRepository.GetVideoByIdAndChannelIdAsync(id, channelId))
         {
@@ -91,6 +100,7 @@ public class VideoService
             Source = Platform,
             Status = VideoStatus.Pending,
             SourceStatus = VideoStatus.Exist,
+            IsLiveStream = islive,
             Title = info.Title,
             Description = info.Description,
             ChannelId = channelId,

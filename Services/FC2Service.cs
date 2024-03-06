@@ -1,11 +1,11 @@
-﻿using LivestreamRecorderService.Models;
-using Newtonsoft.Json;
-using Serilog;
+﻿using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using FC2MemberData = LivestreamRecorderBackend.Models.FC2MemberData._FC2MemberData;
 
 namespace LivestreamRecorderBackend.Services;
 
@@ -41,7 +41,7 @@ public class FC2Service
                 cancellationToken: cancellation);
             response.EnsureSuccessStatusCode();
             string jsonString = await response.Content.ReadAsStringAsync(cancellation);
-            FC2MemberData? info = JsonConvert.DeserializeObject<FC2MemberData>(jsonString);
+            FC2MemberData? info = JsonSerializer.Deserialize<FC2MemberData>(jsonString);
 
             return info;
         }

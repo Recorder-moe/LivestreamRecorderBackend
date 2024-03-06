@@ -123,13 +123,13 @@ namespace LivestreamRecorderBackend
                     throw new ConfigurationErrorsException("Invalid ENV for S3. Please set S3_Endpoint, S3_AccessKey, S3_SecretKey, S3_Secure, S3_BucketNamePrivate, S3_BucketNamePublic");
                 }
 
-                MinioClient minio = new MinioClient()
+                IMinioClient minio = new MinioClient()
                             .WithEndpoint(Environment.GetEnvironmentVariable("S3_Endpoint"))
                             .WithCredentials(Environment.GetEnvironmentVariable("S3_AccessKey"), Environment.GetEnvironmentVariable("S3_SecretKey"))
                             .WithSSL(bool.Parse(Environment.GetEnvironmentVariable("S3_Secure") ?? "false"))
                             .Build();
 
-                builder.Services.AddSingleton<IMinioClient>(minio);
+                builder.Services.AddSingleton(minio);
                 builder.Services.AddSingleton<IStorageService, S3Service>();
             }
             else

@@ -7,12 +7,12 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -56,7 +56,7 @@ public class Video
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            AddVideoRequest data = JsonConvert.DeserializeObject<AddVideoRequest>(requestBody)
+            AddVideoRequest data = JsonSerializer.Deserialize<AddVideoRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (string.IsNullOrEmpty(data.Url))
@@ -65,7 +65,8 @@ public class Video
             }
 
             var video = await _videoService.AddVideoAsync(data.Url);
-            return new OkObjectResult(video);
+            var resultdata = JsonSerializer.SerializeToUtf8Bytes(video);
+            return new FileContentResult(resultdata, "application/json");
         }
         catch (Exception e)
         {
@@ -99,7 +100,7 @@ public class Video
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            UpdateVideoRequest data = JsonConvert.DeserializeObject<UpdateVideoRequest>(requestBody)
+            UpdateVideoRequest data = JsonSerializer.Deserialize<UpdateVideoRequest>(requestBody)
                 ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (string.IsNullOrEmpty(data.id))
@@ -119,7 +120,8 @@ public class Video
             }
 
             await _videoService.UpdateVideoAsync(video, data);
-            return new OkObjectResult(video);
+            var resultdata = JsonSerializer.SerializeToUtf8Bytes(video);
+            return new FileContentResult(resultdata, "application/json");
         }
         catch (Exception e)
         {
@@ -128,7 +130,8 @@ public class Video
                 _logger.Warning(e, e.Message);
                 return new BadRequestObjectResult(e.Message);
             }
-            else if (e is EntityNotFoundException)
+
+            if (e is EntityNotFoundException)
             {
                 return new BadRequestObjectResult(e.Message);
             }
@@ -177,7 +180,8 @@ public class Video
                 _logger.Warning(e, e.Message);
                 return new BadRequestObjectResult(e.Message);
             }
-            else if (e is EntityNotFoundException)
+
+            if (e is EntityNotFoundException)
             {
                 return new BadRequestObjectResult(e.Message);
             }
@@ -192,6 +196,7 @@ public class Video
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The Token.")]
+    // skipcq: CS-R1073
     public async Task<IActionResult> GetToken(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/Token")] HttpRequest req)
     {

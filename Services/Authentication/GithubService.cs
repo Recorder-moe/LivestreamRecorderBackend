@@ -62,12 +62,12 @@ public class GithubService : IAuthenticationCodeHandlerService, IAuthenticationH
 
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var identity = new ClaimsIdentity("github");
-        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetString("id") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetString("login") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.GivenName, payload.RootElement.GetString("name")?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Surname, payload.RootElement.GetString("name")?.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetString("email") ?? "", ClaimValueTypes.String));
-        identity.AddClaim(new Claim("picture", payload.RootElement.GetString("avatar_url") ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, payload.RootElement.GetProperty("id").GetInt32().ToString(), ClaimValueTypes.Integer32));
+        identity.AddClaim(new Claim(ClaimTypes.Name, payload.RootElement.GetProperty("login").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.GivenName, payload.RootElement.GetProperty("name").GetString()?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Surname, payload.RootElement.GetProperty("name").GetString()?.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim(ClaimTypes.Email, payload.RootElement.GetProperty("email").GetString() ?? "", ClaimValueTypes.String));
+        identity.AddClaim(new Claim("picture", payload.RootElement.GetProperty("avatar_url").GetString() ?? "", ClaimValueTypes.String));
 
         return new ClaimsPrincipal(identity);
     }

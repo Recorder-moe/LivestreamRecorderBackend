@@ -6,12 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using YoutubeDLSharp;
 using YoutubeDLSharp.Helpers;
 using YoutubeDLSharp.Options;
+using YtdlpVideoData = LivestreamRecorderBackend.Models.YtdlpVideoData._YtdlpVideoData;
 
 namespace LivestreamRecorderBackend.Helper;
 
@@ -29,7 +31,7 @@ internal static partial class YoutubeDL
     /// <param name="overrideOptions"></param>
     /// <returns></returns>
 #pragma warning disable CA1068 // CancellationToken 參數必須位於最後
-    public static async Task<RunResult<YtdlpVideoData>> RunVideoDataFetch_Alt(this YoutubeDLSharp.YoutubeDL ytdl, string url, CancellationToken ct = default, bool flat = true, OptionSet overrideOptions = null)
+    public static async Task<RunResult<YtdlpVideoData>> RunVideoDataFetch_Alt(this YoutubeDLSharp.YoutubeDL ytdl, string url, CancellationToken ct = default, bool flat = true, bool fetchComments = false, OptionSet overrideOptions = null)
 #pragma warning restore CA1068 // CancellationToken 參數必須位於最後
     {
         OptionSet optionSet = new()
@@ -37,23 +39,24 @@ internal static partial class YoutubeDL
             IgnoreErrors = ytdl.IgnoreDownloadErrors,
             IgnoreConfig = true,
             NoPlaylist = true,
-            HlsPreferNative = true,
-            ExternalDownloaderArgs = "-nostats -loglevel 0",
+            Downloader = "m3u8:native",
+            DownloaderArgs = "ffmpeg:-nostats -loglevel 0",
             Output = Path.Combine(ytdl.OutputFolder, ytdl.OutputFileTemplate),
             RestrictFilenames = ytdl.RestrictFilenames,
-            NoContinue = ytdl.OverwriteFiles,
+            ForceOverwrites = ytdl.OverwriteFiles,
             NoOverwrites = !ytdl.OverwriteFiles,
             NoPart = true,
             FfmpegLocation = Utils.GetFullPath(ytdl.FFmpegPath),
-            Exec = "echo {}"
+            Exec = "echo outfile: {}",
+            DumpSingleJson = true,
+            FlatPlaylist = flat,
+            WriteComments = fetchComments
         };
         if (overrideOptions != null)
         {
             optionSet = optionSet.OverrideOptions(overrideOptions);
         }
 
-        optionSet.DumpSingleJson = true;
-        optionSet.FlatPlaylist = flat;
         YtdlpVideoData videoData = null;
         YoutubeDLProcess youtubeDLProcess = new(ytdl.YoutubeDLPath);
         youtubeDLProcess.OutputReceived += (o, e) =>
@@ -65,7 +68,14 @@ internal static partial class YoutubeDL
                              .Replace("True", "true");
             // Change json string from 'sth' to "sth"
             data = new Regex("(?:[\\s:\\[\\{\\(])'([^'\\r\\n\\s]*)'(?:\\s,]}\\))").Replace(data, @"""$1""");
-            videoData = Newtonsoft.Json.JsonConvert.DeserializeObject<YtdlpVideoData>(data);
+            videoData = JsonSerializer.Deserialize<YtdlpVideoData>(
+                data,
+                options: new()
+                {
+                    AllowTrailingCommas = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip,
+                    WriteIndented = true
+                });
         };
         FieldInfo fieldInfo = typeof(YoutubeDLSharp.YoutubeDL).GetField("runner", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.GetField | BindingFlags.SetField);
         (int code, string[] errors) = await (fieldInfo.GetValue(ytdl) as ProcessRunner).RunThrottled(youtubeDLProcess, new[] { url }, optionSet, ct);
@@ -164,7 +174,7 @@ internal static partial class YoutubeDL
             var res = await ytdl.RunVideoDataFetch_Alt(url, overrideOptions: optionSet, ct: cancellation);
             if (!res.Success)
             {
-                throw new Exception(string.Join(' ', res.ErrorOutput));
+                throw new InvalidOperationException($"Failed to fetch video data from yt-dlp for URL: {url}. Errors: {string.Join(' ', res.ErrorOutput)}");
             }
 
             YtdlpVideoData videoData = res.Data;
