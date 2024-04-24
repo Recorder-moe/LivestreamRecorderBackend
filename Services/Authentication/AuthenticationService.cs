@@ -36,44 +36,59 @@ public class AuthenticationService
         ClaimsPrincipal? result = null;
         try
         {
+            // ReSharper disable EmptyGeneralCatchClause
             try
             {
                 result = await _googleService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
             // skipcq: CS-R1008
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
+
             try
             {
                 result = await _githubService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
             // skipcq: CS-R1008
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
+
             try
             {
                 result = await _microsoftService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
             // skipcq: CS-R1008
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
+
             try
             {
                 result = await _discordService.GetUserInfoFromTokenAsync(token);
                 return result;
             }
             // skipcq: CS-R1008
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
+            // ReSharper restore EmptyGeneralCatchClause
         }
         finally
         {
             if (null != result)
             {
-                _memoryCache.Set(token, result, new MemoryCacheEntryOptions()
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
-                    Size = 1
-                });
+                _memoryCache.Set(token,
+                    result,
+                    new MemoryCacheEntryOptions()
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1),
+                        Size = 1
+                    });
             }
         }
 
@@ -83,16 +98,17 @@ public class AuthenticationService
     /// <summary>
     /// 動態取得request URL，以產生並覆寫RedirectUri
     /// </summary>
-    /// <param name="request"></param>
+    /// <param name="requestUrl"></param>
     /// <param name="route"></param>
     // skipcq: CS-A1000
     internal static string GetRedirectUri(string requestUrl, string route)
     {
         Uri uri = new(requestUrl);
-        string port = uri.Scheme == "https" && uri.Port == 443
-                      || uri.Scheme == "http" && uri.Port == 80
-                      ? ""
-                      : $":{uri.Port}";
+        var port = uri.Scheme == "https" && uri.Port == 443
+                   || uri.Scheme == "http" && uri.Port == 80
+            ? ""
+            : $":{uri.Port}";
+
         return $"{uri.Scheme}://{uri.Host}{port}/{route}";
     }
 }

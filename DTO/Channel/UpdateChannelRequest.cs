@@ -4,6 +4,7 @@
 public class UpdateChannelRequest
 {
 #pragma warning disable IDE1006 // 命名樣式
+    // ReSharper disable once InconsistentNaming
     public string id { get; set; }
 #pragma warning restore IDE1006 // 命名樣式
     public string Source { get; set; }
@@ -12,4 +13,3 @@ public class UpdateChannelRequest
     public string? Avatar { get; set; }
     public string? Banner { get; set; }
 }
-

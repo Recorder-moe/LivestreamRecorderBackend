@@ -1,20 +1,21 @@
-﻿using LivestreamRecorder.DB.Models;
-using LivestreamRecorderBackend.Interfaces;
-using Minio;
-using Minio.Exceptions;
-using Serilog;
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using LivestreamRecorder.DB.Models;
+using LivestreamRecorderBackend.Interfaces;
+using Minio;
+using Minio.DataModel.Args;
+using Minio.Exceptions;
+using Serilog;
 
-namespace LivestreamRecorderBackend.SingletonServices;
+namespace LivestreamRecorderBackend.Services.StorageService;
 
 public class S3Service : IStorageService
 {
     private readonly IMinioClient _minioClient;
     private readonly ILogger _logger;
-    readonly string _bucketName_Private = Environment.GetEnvironmentVariable("S3_BucketNamePrivate")!;
-    readonly string _bucketName_Public = Environment.GetEnvironmentVariable("S3_BucketNamePublic")!;
+    readonly string _bucketNamePrivate = Environment.GetEnvironmentVariable("S3_BucketNamePrivate")!;
+    readonly string _bucketNamePublic = Environment.GetEnvironmentVariable("S3_BucketNamePublic")!;
 
     public S3Service(
         IMinioClient minioClient,
@@ -29,8 +30,10 @@ public class S3Service : IStorageService
         try
         {
             await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
-                                .WithBucket(_bucketName_Private)
-                                .WithObject($"videos/{filename}"), cancellation);
+                                                 .WithBucket(_bucketNamePrivate)
+                                                 .WithObject($"videos/{filename}"),
+                cancellation);
+
             return true;
         }
         catch (MinioException e)
@@ -44,11 +47,12 @@ public class S3Service : IStorageService
     {
         try
         {
-            var response = await _minioClient.PutObjectAsync(new PutObjectArgs()
-                                                .WithBucket(_bucketName_Public)
-                                                .WithObject(pathInStorage)
-                                                .WithFileName(tempPath)
-                                                .WithContentType(contentType), cancellation);
+            await _minioClient.PutObjectAsync(new PutObjectArgs()
+                                              .WithBucket(_bucketNamePublic)
+                                              .WithObject(pathInStorage)
+                                              .WithFileName(tempPath)
+                                              .WithContentType(contentType),
+                cancellation);
         }
         catch (MinioException e)
         {
@@ -61,10 +65,11 @@ public class S3Service : IStorageService
         try
         {
             var url = await _minioClient.PresignedGetObjectAsync(new PresignedGetObjectArgs()
-                                                .WithBucket(_bucketName_Private)
-                                                .WithObject($"videos/{video.Filename}")
-                                                .WithRequestDate(DateTime.UtcNow.AddMinutes(-1))
-                                                .WithExpiry((int)TimeSpan.FromHours(12).TotalSeconds));
+                                                                 .WithBucket(_bucketNamePrivate)
+                                                                 .WithObject($"videos/{video.Filename}")
+                                                                 .WithRequestDate(DateTime.UtcNow.AddMinutes(-1))
+                                                                 .WithExpiry((int)TimeSpan.FromHours(12).TotalSeconds));
+
             return new Uri(url).Query;
         }
         catch (MinioException e)

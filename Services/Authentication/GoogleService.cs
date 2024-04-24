@@ -1,8 +1,6 @@
 ﻿using LivestreamRecorderBackend.Interfaces;
-using Microsoft.AspNetCore.Authentication;
 using System.Net.Http;
 using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -25,7 +23,8 @@ public class GoogleService : IAuthenticationHandlerService
         var response = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
         if (!response.IsSuccessStatusCode)
         {
-            throw new HttpRequestException($"An error occurred when retrieving Google user information ({response.StatusCode}). Please check if the authentication information is correct.");
+            throw new HttpRequestException(
+                $"An error occurred when retrieving Google user information ({response.StatusCode}). Please check if the authentication information is correct.");
         }
 
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

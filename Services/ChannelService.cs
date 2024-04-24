@@ -21,8 +21,8 @@ namespace LivestreamRecorderBackend.Services;
 
 public class ChannelService
 {
-    private readonly IUnitOfWork _unitOfWork_Public;
-    private readonly FC2Service _fC2Service;
+    private readonly IUnitOfWork _unitOfWorkPublic;
+    private readonly Fc2Service _fC2Service;
     private readonly HttpClient _httpClient;
     private readonly IChannelRepository _channelRepository;
     private readonly ILogger _logger;
@@ -32,12 +32,13 @@ public class ChannelService
         ILogger logger,
         IStorageService storageService,
         IChannelRepository channelRepository,
-        UnitOfWork_Public unitOfWork_Public,
-        FC2Service fC2Service,
+        // ReSharper disable once SuggestBaseTypeForParameterInConstructor
+        UnitOfWork_Public unitOfWorkPublic,
+        Fc2Service fC2Service,
         IHttpClientFactory httpClientFactory)
     {
         _channelRepository = channelRepository;
-        _unitOfWork_Public = unitOfWork_Public;
+        _unitOfWorkPublic = unitOfWorkPublic;
         _fC2Service = fC2Service;
         _httpClient = httpClientFactory.CreateClient("client");
         _logger = logger;
@@ -65,11 +66,12 @@ public class ChannelService
         }
 
         await _channelRepository.AddOrUpdateAsync(channel);
-        _unitOfWork_Public.Commit();
+        _unitOfWorkPublic.Commit();
         return channel;
     }
 
-    internal async Task UpdateChannelDataAsync(Channel channel, bool autoUpdateInfo, string? name = null, string? avatarUrl = null, string? bannerUrl = null, CancellationToken cancellation = default)
+    internal async Task UpdateChannelDataAsync(Channel channel, bool autoUpdateInfo, string? name = null, string? avatarUrl = null,
+        string? bannerUrl = null, CancellationToken cancellation = default)
     {
         var channelName = channel.ChannelName;
         var avatarBlobUri = channel.Avatar;
@@ -80,36 +82,35 @@ public class ChannelService
             switch (channel.Source)
             {
                 case "Youtube":
+                {
+                    var info = await YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
+                    if (null == info)
                     {
-                        var info = await Helper.YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
-                        if (null == info)
-                        {
-                            _logger.Warning("Failed to get channel info for {channelId}", channel.id);
-                            return;
-                        }
-
-                        name = info.Uploader;
-
-                        var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
-                        avatarUrl = thumbnails.FirstOrDefault()?.Url;
-                        bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
+                        _logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                        return;
                     }
+
+                    name = info.Uploader;
+
+                    var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
+                    avatarUrl = thumbnails.FirstOrDefault()?.Url;
+                    bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
+                }
+
                     break;
                 case "FC2":
+                {
+                    var info = await _fC2Service.GetFc2InfoDataAsync(channel.id, cancellation);
+                    if (null == info)
                     {
-                        var info = await _fC2Service.GetFC2InfoDataAsync(channel.id, cancellation);
-                        if (null == info)
-                        {
-                            _logger.Warning("Failed to get channel info for {channelId}", channel.id);
-                            return;
-                        }
-
-                        name = info.Data.ProfileData.Name;
-                        avatarUrl = info.Data.ProfileData.Image;
+                        _logger.Warning("Failed to get channel info for {channelId}", channel.id);
+                        return;
                     }
-                    break;
-                default:
-                    // Only Youtube and FC2 are supported
+
+                    name = info.Data.ProfileData.Name;
+                    avatarUrl = info.Data.ProfileData.Image;
+                }
+
                     break;
             }
         }
@@ -134,7 +135,7 @@ public class ChannelService
         channel.Avatar = avatarBlobUri?.Replace("avatar/", "");
         channel.Banner = bannerBlobUri?.Replace("banner/", "");
         await _channelRepository.AddOrUpdateAsync(channel);
-        _unitOfWork_Public.Commit();
+        _unitOfWorkPublic.Commit();
     }
 
     /// <summary>
@@ -175,9 +176,9 @@ public class ChannelService
         var contentType = response.Content.Headers.ContentType?.MediaType;
         var extension = MimeUtility.GetExtensions(contentType)?.FirstOrDefault();
         extension = extension == "jpeg" ? "jpg" : extension;
-        string pathInStorage = $"{path}.{extension}";
+        var pathInStorage = $"{path}.{extension}";
 
-        string tempPath = Path.GetTempFileName();
+        var tempPath = Path.GetTempFileName();
         tempPath = Path.ChangeExtension(tempPath, extension);
         using (var contentStream = await response.Content.ReadAsStreamAsync(cancellation))
         using (var fileStream = new FileStream(tempPath, FileMode.Create))
@@ -188,13 +189,13 @@ public class ChannelService
         List<Task> tasks = new()
         {
             _storageService.UploadPublicFileAsync(contentType: contentType,
-                                                  pathInStorage: pathInStorage,
-                                                  filePathToUpload: tempPath,
-                                                  cancellation: cancellation),
+                pathInStorage: pathInStorage,
+                filePathToUpload: tempPath,
+                cancellation: cancellation),
             _storageService.UploadPublicFileAsync(contentType: KnownMimeTypes.Avif,
-                                                  pathInStorage: $"{path}.avif",
-                                                  filePathToUpload: await ImageHelper.ConvertToAvifAsync(tempPath),
-                                                  cancellation: cancellation)
+                pathInStorage: $"{path}.avif",
+                filePathToUpload: await ImageHelper.ConvertToAvifAsync(tempPath),
+                cancellation: cancellation)
         };
 
         await Task.WhenAll(tasks);
@@ -212,9 +213,10 @@ public class ChannelService
         {
             throw new EntryPointNotFoundException($"Channel {channelId} not found.");
         }
+
         channel.Monitoring = enable;
         await _channelRepository.AddOrUpdateAsync(channel);
-        _unitOfWork_Public.Commit();
+        _unitOfWorkPublic.Commit();
     }
 
     public async Task EditHidingAsync(string channelId, string source, bool hide)
@@ -224,8 +226,9 @@ public class ChannelService
         {
             throw new EntryPointNotFoundException($"Channel {channelId} not found.");
         }
+
         channel.Hide = hide;
         await _channelRepository.AddOrUpdateAsync(channel);
-        _unitOfWork_Public.Commit();
+        _unitOfWorkPublic.Commit();
     }
 }
