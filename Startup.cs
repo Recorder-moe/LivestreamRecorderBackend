@@ -145,7 +145,7 @@ public class Startup : FunctionsStartup
                         .WithSSL(bool.Parse(Environment.GetEnvironmentVariable("S3_Secure") ?? "false"))
                         .Build();
 
-            builder.Services.AddSingleton(minio);
+            builder.Services.AddSingleton<IMinioClient>(minio);
             builder.Services.AddSingleton<IStorageService, S3Service>();
         }
         else

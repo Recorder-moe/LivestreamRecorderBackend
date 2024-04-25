@@ -112,6 +112,10 @@ public class ChannelService
                 }
 
                     break;
+                // ReSharper disable once RedundantEmptySwitchSection
+                default:
+                    // Only download images for Youtube and FC2
+                    break;
             }
         }
 
