@@ -38,7 +38,8 @@ public class Authentication
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Redirect, Description = "Success")]
     // skipcq: CS-R1073
     public async Task<IActionResult> GithubSignin(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "signin-github")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "signin-github")]
+        HttpRequest req)
     {
         Logger.Debug($"{nameof(GithubSignin)} triggered");
 
@@ -54,15 +55,16 @@ public class Authentication
             Logger.Error(error);
             throw new InvalidOperationException(error);
         }
-        req.Headers.TryGetValue("Referer", out var _backend);
-        string backend = _backend.Count != 0 ? _backend.First() ?? "" : req.GetDisplayUrl();
 
-        string idToken = await _githubService.GetIdTokenAsync(
-            authorization_code: code,
+        req.Headers.TryGetValue("Referer", out var referer);
+        var backend = referer.Count != 0 ? referer.First() ?? "" : req.GetDisplayUrl();
+
+        var idToken = await _githubService.GetIdTokenAsync(
+            authorizationCode: code,
             redirectUri: AuthenticationService.GetRedirectUri(backend, "api/signin-github"));
 
         // Treat it as an implicit flow-style URL so that my front-end can easily handle it with packages (angular-oauth2-oidc).
-        return new RedirectResult($"{_frontEndUri}/pages/login-redirect#state={HttpUtility.UrlEncode(state)}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
+        return new RedirectResult(
+            $"{_frontEndUri}/pages/login-redirect#state={HttpUtility.UrlEncode(state)}&access_token={idToken}&token_type=Bearer&expires_in=3599&scope=email%20profile&authuser=0&prompt=none");
     }
 }
-

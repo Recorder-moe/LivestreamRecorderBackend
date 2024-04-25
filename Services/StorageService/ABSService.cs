@@ -8,32 +8,32 @@ using System.Threading.Tasks;
 
 namespace LivestreamRecorderBackend.Services.StorageService;
 
-public class ABSService : IStorageService
+public class AbsService : IStorageService
 {
-    private readonly BlobContainerClient _containerClient_Private;
-    private readonly BlobContainerClient _containerClient_Public;
+    private readonly BlobContainerClient _containerClientPrivate;
+    private readonly BlobContainerClient _containerClientPublic;
 
-    public ABSService(
+    public AbsService(
         BlobServiceClient blobServiceClient)
     {
-        _containerClient_Private = blobServiceClient.GetBlobContainerClient(Environment.GetEnvironmentVariable("Blob_ContainerNamePrivate"));
-        _containerClient_Public = blobServiceClient.GetBlobContainerClient(Environment.GetEnvironmentVariable("Blob_ContainerNamePublic"));
+        _containerClientPrivate = blobServiceClient.GetBlobContainerClient(Environment.GetEnvironmentVariable("Blob_ContainerNamePrivate"));
+        _containerClientPublic = blobServiceClient.GetBlobContainerClient(Environment.GetEnvironmentVariable("Blob_ContainerNamePublic"));
     }
 
     public async Task<bool> DeleteVideoBlobAsync(string filename, CancellationToken cancellation = default)
-        => (await _containerClient_Private.GetBlobClient($"videos/{filename}")
-                                          .DeleteIfExistsAsync(snapshotsOption: DeleteSnapshotsOption.IncludeSnapshots,
-                                                               cancellationToken: cancellation)).Value;
+        => (await _containerClientPrivate.GetBlobClient($"videos/{filename}")
+                                         .DeleteIfExistsAsync(snapshotsOption: DeleteSnapshotsOption.IncludeSnapshots,
+                                             cancellationToken: cancellation)).Value;
 
     public Task UploadPublicFileAsync(string? contentType, string pathInStorage, string tempPath, CancellationToken cancellation = default)
-        => _containerClient_Public.GetBlobClient(pathInStorage)
-                                  .UploadAsync(path: tempPath,
-                                               httpHeaders: new BlobHttpHeaders { ContentType = contentType },
-                                               accessTier: AccessTier.Hot,
-                                               cancellationToken: cancellation);
+        => _containerClientPublic.GetBlobClient(pathInStorage)
+                                 .UploadAsync(path: tempPath,
+                                     httpHeaders: new BlobHttpHeaders { ContentType = contentType },
+                                     accessTier: AccessTier.Hot,
+                                     cancellationToken: cancellation);
 
     public Task<string> GetTokenAsync(Video video)
-        => Task.FromResult(_containerClient_Private.GetBlobClient($"videos/{video.Filename}")
-                                                   .GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12))
-                                                   .Query);
+        => Task.FromResult(_containerClientPrivate.GetBlobClient($"videos/{video.Filename}")
+                                                  .GenerateSasUri(Azure.Storage.Sas.BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(12))
+                                                  .Query);
 }

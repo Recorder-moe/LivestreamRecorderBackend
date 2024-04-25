@@ -43,7 +43,8 @@ public class Video
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest)]
     public async Task<IActionResult> AddVideoAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Video")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Video")]
+        HttpRequest req)
     {
         try
         {
@@ -51,13 +52,14 @@ public class Video
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            AddVideoRequest data = JsonSerializer.Deserialize<AddVideoRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            var data = JsonSerializer.Deserialize<AddVideoRequest>(requestBody)
+                       ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (string.IsNullOrEmpty(data.Url))
             {
@@ -65,8 +67,8 @@ public class Video
             }
 
             var video = await _videoService.AddVideoAsync(data.Url);
-            var resultdata = JsonSerializer.SerializeToUtf8Bytes(video);
-            return new FileContentResult(resultdata, "application/json");
+            var resultData = JsonSerializer.SerializeToUtf8Bytes(video);
+            return new FileContentResult(resultData, "application/json");
         }
         catch (Exception e)
         {
@@ -87,7 +89,8 @@ public class Video
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Video), Description = "Video")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Video not found.")]
     public async Task<IActionResult> UpdateVideoAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Video")]
+        HttpRequest req)
     {
         try
         {
@@ -95,33 +98,34 @@ public class Video
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            UpdateVideoRequest data = JsonSerializer.Deserialize<UpdateVideoRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            var data = JsonSerializer.Deserialize<UpdateVideoRequest>(requestBody)
+                       ?? throw new InvalidOperationException("Invalid request body!!");
 
             if (string.IsNullOrEmpty(data.id))
             {
                 return new BadRequestObjectResult("Missing videoId query parameter.");
             }
+
             if (string.IsNullOrEmpty(data.ChannelId))
             {
                 return new BadRequestObjectResult("Missing channelId query parameter.");
             }
 
             var video = await _videoService.GetByVideoIdAndChannelIdAsync(data.id, data.ChannelId);
-            if (null == data
-                || null == video)
+            if (null == video)
             {
                 return new BadRequestObjectResult("Video not found.");
             }
 
             await _videoService.UpdateVideoAsync(video, data);
-            var resultdata = JsonSerializer.SerializeToUtf8Bytes(video);
-            return new FileContentResult(resultdata, "application/json");
+            var resultData = JsonSerializer.SerializeToUtf8Bytes(video);
+            return new FileContentResult(resultData, "application/json");
         }
         catch (Exception e)
         {
@@ -148,7 +152,8 @@ public class Video
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
     public async Task<IActionResult> RemoveVideoAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Video")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Video")]
+        HttpRequest req)
     {
         try
         {
@@ -198,7 +203,8 @@ public class Video
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, "text/plain", typeof(string), Description = "The Token.")]
     // skipcq: CS-R1073
     public async Task<IActionResult> GetToken(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/Token")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Video/Token")]
+        HttpRequest req)
     {
         try
         {
@@ -217,7 +223,7 @@ public class Video
                 || string.IsNullOrEmpty(channelId))
                 return new BadRequestObjectResult("Missing parameters.");
 
-            string token = await _videoService.GetTokenAsync(videoId, channelId);
+            var token = await _videoService.GetTokenAsync(videoId, channelId);
             if (string.IsNullOrEmpty(token))
             {
                 _logger.Warning("The video {videoId} download by user {userId} failed when generating Token.", videoId, user.id);
@@ -235,4 +241,3 @@ public class Video
         }
     }
 }
-

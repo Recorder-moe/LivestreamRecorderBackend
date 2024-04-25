@@ -17,10 +17,11 @@ public static class Log
         get
         {
             if (null == _logger
-                || _logger.GetType() != typeof(Serilog.Core.Logger))
+                || _logger.GetType() != typeof(Logger))
             {
                 _logger = MakeLogger();
             }
+
             return _logger;
         }
         set => _logger = value;
@@ -33,22 +34,22 @@ public static class Log
         var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Verbose);
 
         var logger = new LoggerConfiguration()
-                        .MinimumLevel.ControlledBy(levelSwitch)
-                        .MinimumLevel.Override("Microsoft", LogEventLevel.Fatal)
-                        .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Fatal)
-                        .MinimumLevel.Override("System", LogEventLevel.Fatal)
-                        .WriteTo.Console(outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj} <{SourceContext}>{NewLine}{Exception}",
-                                         theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Code)
-                        .WriteTo.Seq(serverUrl: Environment.GetEnvironmentVariable("Seq_ServerUrl")!,
-                                     apiKey: Environment.GetEnvironmentVariable("Seq_ApiKey"),
-                                     controlLevelSwitch: levelSwitch)
-                        .Enrich.WithMachineName()
-                        .Enrich.FromLogContext()
-                        .CreateLogger();
+                     .MinimumLevel.ControlledBy(levelSwitch)
+                     .MinimumLevel.Override("Microsoft", LogEventLevel.Fatal)
+                     .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Fatal)
+                     .MinimumLevel.Override("System", LogEventLevel.Fatal)
+                     .WriteTo.Console(outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj} <{SourceContext}>{NewLine}{Exception}",
+                         theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Code)
+                     .WriteTo.Seq(serverUrl: Environment.GetEnvironmentVariable("Seq_ServerUrl")!,
+                         apiKey: Environment.GetEnvironmentVariable("Seq_ApiKey"),
+                         controlLevelSwitch: levelSwitch)
+                     .Enrich.WithMachineName()
+                     .Enrich.FromLogContext()
+                     .CreateLogger();
+
         return logger;
     }
 
     public static void LogClaimsPrincipal(ClaimsPrincipal principal)
         => Logger.Debug(JsonSerializer.Serialize(principal.Claims.Select(p => (p.Type, p.Value)).ToArray()));
-
 }

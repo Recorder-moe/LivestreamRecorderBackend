@@ -11,8 +11,8 @@ public static class NameHelper
     {
         public static class ChannelId
         {
-            public static string PlatformType(string channelId, string Platform)
-                => Platform switch
+            public static string PlatformType(string channelId, string platform)
+                => platform switch
                 {
                     "Youtube" => channelId, // Youtube channelId already starts with "UC"
                     "Twitch" => channelId[2..],
@@ -21,8 +21,8 @@ public static class NameHelper
                     _ => throw new NotImplementedException(),
                 };
 
-            public static string DatabaseType(string channelId, string Platform)
-                => Platform switch
+            public static string DatabaseType(string channelId, string platform)
+                => platform switch
                 {
                     "Youtube" => channelId, // Youtube channelId always starts with "UC"
                     "Twitch" => "TW" + channelId,
@@ -34,8 +34,8 @@ public static class NameHelper
 
         public static class VideoId
         {
-            public static string PlatformType(string videoId, string Platform)
-                => Platform switch
+            public static string PlatformType(string videoId, string platform)
+                => platform switch
                 {
                     "Youtube" => videoId[1..],
                     "Twitch" => videoId[2..],
@@ -44,8 +44,8 @@ public static class NameHelper
                     _ => throw new NotImplementedException(),
                 };
 
-            public static string DatabaseType(string videoId, string Platform)
-                => Platform switch
+            public static string DatabaseType(string videoId, string platform)
+                => platform switch
                 {
                     "Youtube" => "Y" + videoId,
                     "Twitch" => "TW" + videoId,

@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
-using Microsoft.OpenApi.Models;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
@@ -41,7 +40,8 @@ public class User
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
     public async Task<IActionResult> GetUserAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "User")]
+        HttpRequest req)
     {
         try
         {
@@ -49,7 +49,7 @@ public class User
             if (null == user) return new UnauthorizedResult();
 
             var result = new GetUserResponse();
-            if (null != user) result.InjectFrom(user);
+            result.InjectFrom(user);
             var data = JsonSerializer.SerializeToUtf8Bytes(result);
             return new FileContentResult(data, "application/json");
         }
@@ -67,18 +67,19 @@ public class User
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
     // skipcq: CS-R1073
     public async Task<IActionResult> CreateOrUpdateUser(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "User")]
+        HttpRequest req)
     {
         try
         {
             if (!req.Headers.TryGetValue("Authorization", out var authHeader)
                 || authHeader.Count == 0) return new UnauthorizedResult();
+
             var token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
             if (null == token) return new UnauthorizedResult();
             var principal = await _authenticationService.GetUserInfoFromTokenAsync(token);
 
-            if (null == principal
-                || null == principal.Identity
+            if (null == principal.Identity
                 || !principal.Identity.IsAuthenticated) return new UnauthorizedResult();
 
             await _userService.CreateOrUpdateUserWithOAuthClaimsAsync(principal);
@@ -102,26 +103,28 @@ public class User
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
     public async Task<IActionResult> UpdateUserAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "User")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "User")]
+        HttpRequest req)
     {
         try
         {
             var user = await _userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            UpdateUserRequest data = JsonSerializer.Deserialize<UpdateUserRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+
+            var data = JsonSerializer.Deserialize<UpdateUserRequest>(requestBody)
+                       ?? throw new InvalidOperationException("Invalid request body!!");
 
             user = await _userService.UpdateUserAsync(data, user);
             var result = new GetUserResponse();
-            if (null != user) result.InjectFrom(user);
-            var resultdata = JsonSerializer.SerializeToUtf8Bytes(result);
-            return new FileContentResult(resultdata, "application/json");
+            result.InjectFrom(user);
+            var resultData = JsonSerializer.SerializeToUtf8Bytes(result);
+            return new FileContentResult(resultData, "application/json");
         }
         catch (Exception e)
         {
@@ -136,4 +139,3 @@ public class User
         }
     }
 }
-

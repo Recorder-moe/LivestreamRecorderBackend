@@ -42,7 +42,8 @@ public class Channel
     [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> AddChannelAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel")]
+        HttpRequest req,
         [DurableClient] IDurableClient starter)
     {
         try
@@ -51,35 +52,37 @@ public class Channel
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
                 // Workaround for issue: https://github.com/Azure/azure-functions-durable-extension/issues/1138#issuecomment-585868647
                 req.Body = new MemoryStream(Encoding.ASCII.GetBytes(requestBody));
             }
+
             var data = JsonSerializer.Deserialize<AddChannelRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
-            var channelId = "";
-            var channelName = "";
+                       ?? throw new InvalidOperationException("Invalid request body!!");
+
+            string channelId;
+            string channelName;
             var url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(new[] { '/' });
 
-            string Platform;
+            string platform;
             if (url.Contains("youtube"))
             {
-                Platform = "Youtube";
+                platform = "Youtube";
             }
             else if (url.Contains("twitcasting"))
             {
-                Platform = "Twitcasting";
+                platform = "Twitcasting";
             }
             else if (url.Contains("twitch"))
             {
-                Platform = "Twitch";
+                platform = "Twitch";
             }
             else if (url.Contains("fc2"))
             {
-                Platform = "FC2";
+                platform = "FC2";
             }
             else
             {
@@ -88,7 +91,7 @@ public class Channel
             }
 
             // skipcq: CS-R1116
-            switch (Platform)
+            switch (platform)
             {
                 case "Youtube":
                     var info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
@@ -109,12 +112,13 @@ public class Channel
                     channelName = data.Name ?? channelId;
                     break;
             }
-            channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, Platform);
 
-            var channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, Platform)
+            channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, platform);
+
+            var channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, platform)
                           ?? await _channelService.AddChannelAsync(id: channelId,
-                                                                  source: Platform,
-                                                                  channelName: channelName);
+                              source: platform,
+                              channelName: channelName);
 
             _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
@@ -153,8 +157,9 @@ public class Channel
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     // skipcq: CS-R1073
     public async Task<IActionResult> UpdateChannel_Http(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")] HttpRequest req,
-            [DurableClient] IDurableClient starter)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")]
+        HttpRequest req,
+        [DurableClient] IDurableClient starter)
     {
         try
         {
@@ -162,15 +167,16 @@ public class Channel
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
-            var data = JsonSerializer.Deserialize<UpdateChannelRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
 
-            var instanceId = await starter.StartNewAsync(
+            var data = JsonSerializer.Deserialize<UpdateChannelRequest>(requestBody)
+                       ?? throw new InvalidOperationException("Invalid request body!!");
+
+            await starter.StartNewAsync(
                 orchestratorFunctionName: nameof(UpdateChannel_Durable),
                 input: data);
 
@@ -185,9 +191,9 @@ public class Channel
 
     [FunctionName(nameof(UpdateChannel_Durable))]
     public bool UpdateChannel_Durable(
-    [OrchestrationTrigger] IDurableOrchestrationContext context)
+        [OrchestrationTrigger] IDurableOrchestrationContext context)
     {
-        UpdateChannelRequest data = context.GetInput<UpdateChannelRequest>();
+        var data = context.GetInput<UpdateChannelRequest>();
         _ = Task.Run(async () =>
         {
             _logger.Information("Start updating channel {channelId}", data.id);
@@ -200,14 +206,16 @@ public class Channel
 
             if (null != data.Avatar)
             {
-                data.Avatar = data.Avatar.Replace("_bigger", "")        // Twitcasting
-                                         .Replace("70x70", "300x300");  // Twitch
+                data.Avatar = data.Avatar.Replace("_bigger", "") // Twitcasting
+                                  .Replace("70x70", "300x300"); // Twitch
             }
+
             await _channelService.UpdateChannelDataAsync(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
             await _channelService.EditMonitoringAsync(data.id, data.Source, true);
             _logger.Information("Finish updating channel {channelId}", data.id);
         });
+
         return true;
     }
 
@@ -216,7 +224,8 @@ public class Channel
     [OpenApiRequestBody("application/json", typeof(EnableChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
     public async Task<IActionResult> EnableChannelAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/EnableChannel")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/EnableChannel")]
+        HttpRequest req)
     {
         try
         {
@@ -224,13 +233,14 @@ public class Channel
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
+
             var data = JsonSerializer.Deserialize<EnableChannelRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+                       ?? throw new InvalidOperationException("Invalid request body!!");
 
             await _channelService.EditMonitoringAsync(data.id, data.Source, data.Monitoring);
 
@@ -253,7 +263,8 @@ public class Channel
     [OpenApiRequestBody("application/json", typeof(HideChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
     public async Task<IActionResult> HideChannelAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/HideChannel")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel/HideChannel")]
+        HttpRequest req)
     {
         try
         {
@@ -261,13 +272,14 @@ public class Channel
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            string requestBody = string.Empty;
+            string requestBody;
             using (StreamReader streamReader = new(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
+
             var data = JsonSerializer.Deserialize<HideChannelRequest>(requestBody)
-                ?? throw new InvalidOperationException("Invalid request body!!");
+                       ?? throw new InvalidOperationException("Invalid request body!!");
 
             await _channelService.EditHidingAsync(data.id, data.Source, data.Hide);
 
@@ -285,4 +297,3 @@ public class Channel
         }
     }
 }
-

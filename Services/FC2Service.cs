@@ -9,14 +9,14 @@ using FC2MemberData = LivestreamRecorderBackend.Models.FC2MemberData._FC2MemberD
 
 namespace LivestreamRecorderBackend.Services;
 
-public class FC2Service
+public class Fc2Service
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
-    private const string _memberApi = "https://live.fc2.com/api/memberApi.php";
+    private const string MemberApi = "https://live.fc2.com/api/memberApi.php";
 
 
-    public FC2Service(
+    public Fc2Service(
         IHttpClientFactory httpClientFactory,
         ILogger logger)
     {
@@ -24,12 +24,12 @@ public class FC2Service
         _logger = logger;
     }
 
-    public async Task<FC2MemberData?> GetFC2InfoDataAsync(string channelId, CancellationToken cancellation = default)
+    public async Task<FC2MemberData?> GetFc2InfoDataAsync(string channelId, CancellationToken cancellation = default)
     {
         try
         {
             var response = await _httpClient.PostAsync(
-                requestUri: $@"{_memberApi}",
+                requestUri: $@"{MemberApi}",
                 content: new FormUrlEncodedContent(
                     new Dictionary<string, string>()
                     {
@@ -39,9 +39,10 @@ public class FC2Service
                         { "streamid", channelId }
                     }),
                 cancellationToken: cancellation);
+
             response.EnsureSuccessStatusCode();
-            string jsonString = await response.Content.ReadAsStringAsync(cancellation);
-            FC2MemberData? info = JsonSerializer.Deserialize<FC2MemberData>(jsonString);
+            var jsonString = await response.Content.ReadAsStringAsync(cancellation);
+            var info = JsonSerializer.Deserialize<FC2MemberData>(jsonString);
 
             return info;
         }

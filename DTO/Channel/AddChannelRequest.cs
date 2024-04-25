@@ -8,4 +8,3 @@ public class AddChannelRequest
     public string? Avatar { get; set; }
     public string? Banner { get; set; }
 }
-
