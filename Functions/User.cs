@@ -4,9 +4,6 @@ using LivestreamRecorderBackend.Services;
 using LivestreamRecorderBackend.Services.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Omu.ValueInjecter;
 using Serilog;
 using System;
@@ -16,6 +13,8 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 
 namespace LivestreamRecorderBackend.Functions;
 
@@ -35,7 +34,7 @@ public class User
         _authenticationService = authenticationService;
     }
 
-    [FunctionName(nameof(GetUserAsync))]
+    [Function(nameof(GetUserAsync))]
     [OpenApiOperation(operationId: nameof(GetUserAsync), tags: new[] { nameof(User) })]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "User not found.")]
@@ -61,7 +60,7 @@ public class User
     }
 
 
-    [FunctionName(nameof(CreateOrUpdateUser))]
+    [Function(nameof(CreateOrUpdateUser))]
     [OpenApiOperation(operationId: nameof(CreateOrUpdateUser), tags: new[] { nameof(User) })]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "Issuer not supported")]
@@ -97,7 +96,7 @@ public class User
         }
     }
 
-    [FunctionName(nameof(UpdateUserAsync))]
+    [Function(nameof(UpdateUserAsync))]
     [OpenApiOperation(operationId: nameof(UpdateUserAsync), tags: new[] { nameof(User) })]
     [OpenApiRequestBody("application/json", typeof(UpdateUserRequest), Required = true)]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(GetUserResponse), Description = "User")]

@@ -5,7 +5,7 @@ ARG DatabaseService="ApacheCouchDB"
 ### Build Python
 FROM debian:11 as build-python
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3=3.9.2-3 python3-pip && \
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -28,7 +28,7 @@ RUN --mount=type=cache,id=pip-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/r
     find "/root/.local" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ;
 
 ### Build .NET
-FROM  mcr.microsoft.com/dotnet/sdk:6.0 AS build-dotnet
+FROM  mcr.microsoft.com/dotnet/sdk:8.0 AS build-dotnet
 
 WORKDIR /src
 
@@ -43,9 +43,9 @@ RUN --mount=source=.,target=.,rw \
     dotnet publish "LivestreamRecorderBackend.csproj" -c $BUILD_CONFIGURATION -o /app/publish
 
 ### Final image
-FROM mcr.microsoft.com/azure-functions/dotnet:4
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3=3.9.2-3 dumb-init=1.2.5-1 && \
+RUN apt-get update && apt-get install -y --no-install-recommends python3 dumb-init && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -61,7 +61,7 @@ ENV ASPNETCORE_URLS=http://+:8080
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot
 ENV AzureFunctionsJobHost__Logging__Console__IsEnabled=true
 ENV CORS_SUPPORT_CREDENTIALS=true
-ENV FUNCTIONS_WORKER_RUNTIME=dotnet
+ENV FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
 ENV CORS_ALLOWED_ORIGINS=["https://localhost:4200"]
 ENV FrontEndUri=https://localhost:4200
 ENV AzureWebJobsStorage=

@@ -3,9 +3,6 @@ using LivestreamRecorderBackend.DTO.Video;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System;
@@ -16,6 +13,9 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using System.Linq;
 
 namespace LivestreamRecorderBackend.Functions;
 
@@ -37,7 +37,7 @@ public class Video
         _frontEndUri = Environment.GetEnvironmentVariable("FrontEndUri") ?? "http://localhost:4200";
     }
 
-    [FunctionName(nameof(AddVideoAsync))]
+    [Function(nameof(AddVideoAsync))]
     [OpenApiOperation(operationId: nameof(AddVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiRequestBody("application/json", typeof(AddVideoRequest), Required = true)]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Ok")]
@@ -83,7 +83,7 @@ public class Video
         }
     }
 
-    [FunctionName(nameof(UpdateVideoAsync))]
+    [Function(nameof(UpdateVideoAsync))]
     [OpenApiOperation(operationId: nameof(UpdateVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiRequestBody("application/json", typeof(UpdateVideoRequest), Required = true)]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Video), Description = "Video")]
@@ -145,7 +145,7 @@ public class Video
         }
     }
 
-    [FunctionName(nameof(RemoveVideoAsync))]
+    [Function(nameof(RemoveVideoAsync))]
     [OpenApiOperation(operationId: nameof(RemoveVideoAsync), tags: new[] { nameof(Video) })]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
@@ -161,7 +161,7 @@ public class Video
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
-            IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
+            IDictionary<string, string?> queryDictionary = req.Query.ToDictionary(p => p.Key, p => p.Value.Last());
             queryDictionary.TryGetValue("videoId", out var videoId);
             queryDictionary.TryGetValue("channelId", out var channelId);
 
@@ -196,7 +196,7 @@ public class Video
         }
     }
 
-    [FunctionName(nameof(GetToken))]
+    [Function(nameof(GetToken))]
     [OpenApiOperation(operationId: nameof(GetToken), tags: new[] { nameof(Video) })]
     [OpenApiParameter(name: "videoId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "VideoId")]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
@@ -215,7 +215,7 @@ public class Video
                 && !user.IsAdmin)
                 return new StatusCodeResult(403);
 
-            IDictionary<string, string> queryDictionary = req.GetQueryParameterDictionary();
+            IDictionary<string, string?> queryDictionary = req.Query.ToDictionary(p => p.Key, p => p.Value.Last());
             queryDictionary.TryGetValue("videoId", out var videoId);
             queryDictionary.TryGetValue("channelId", out var channelId);
 
