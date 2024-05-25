@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Serilog;
 using System.Net;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 
 namespace LivestreamRecorderBackend.Functions;
 
@@ -18,17 +17,19 @@ public class Utility
         _logger = logger;
     }
 
-    [FunctionName(nameof(Wake))]
+    [Function(nameof(Wake))]
     [OpenApiOperation(operationId: nameof(Wake), tags: new[] { nameof(Utility) })]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Waked.")]
-    public IActionResult Wake([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Utility/Wake")] HttpRequest req)
+    public IActionResult Wake(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Utility/Wake")]
+        HttpRequest req)
     {
         Wake();
         return new OkResult();
     }
 
 #if RELEASE && Windows
-    [FunctionName(nameof(WakeByTimer))]
+    [Function(nameof(WakeByTimer))]
     public void WakeByTimer([TimerTrigger("0 * * * * *")] TimerInfo timerInfo)
         => Wake();
 #endif

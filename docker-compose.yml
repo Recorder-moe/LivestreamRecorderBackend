@@ -10,7 +10,7 @@ services:
       - 80:8080
     environment:
       - CORS_SUPPORT_CREDENTIALS=true
-      - FUNCTIONS_WORKER_RUNTIME=dotnet
+      - FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
       - CORS_ALLOWED_ORIGINS=["https://localhost:4200"]
       - FrontEndUri=https://localhost:4200
       - StorageService=S3

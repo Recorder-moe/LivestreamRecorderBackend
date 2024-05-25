@@ -3,9 +3,6 @@ using LivestreamRecorderBackend.Services.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System;
@@ -13,6 +10,8 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 
 namespace LivestreamRecorderBackend.Functions;
 
@@ -28,7 +27,7 @@ public class Authentication
         _githubService = githubService;
     }
 
-    [FunctionName(nameof(GithubSignin))]
+    [Function(nameof(GithubSignin))]
     [OpenApiOperation(operationId: nameof(GithubSignin), tags: new[] { "Authentication" })]
     [OpenApiParameter(name: "code", In = ParameterLocation.Query, Required = true, Type = typeof(string))]
     [OpenApiParameter(name: "state", In = ParameterLocation.Query, Required = true, Type = typeof(string))]

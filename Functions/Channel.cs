@@ -4,10 +4,6 @@ using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System;
@@ -18,6 +14,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.DurableTask;
+using Microsoft.DurableTask.Client;
 
 namespace LivestreamRecorderBackend.Functions;
 
@@ -37,14 +38,14 @@ public class Channel
         _userService = userService;
     }
 
-    [FunctionName(nameof(AddChannelAsync))]
+    [Function(nameof(AddChannelAsync))]
     [OpenApiOperation(operationId: nameof(AddChannelAsync), tags: new[] { nameof(Channel) })]
     [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> AddChannelAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Channel")]
         HttpRequest req,
-        [DurableClient] IDurableClient starter)
+        [DurableClient] DurableTaskClient starter)
     {
         try
         {
@@ -122,8 +123,8 @@ public class Channel
 
             _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
-            var instanceId = await starter.StartNewAsync(
-                orchestratorFunctionName: nameof(UpdateChannel_Durable),
+            var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync(
+                orchestratorName: nameof(UpdateChannel_Durable),
                 input: new UpdateChannelRequest()
                 {
                     id = channelId,
@@ -137,7 +138,8 @@ public class Channel
 
             _logger.Information("Started orchestration with ID {instanceId}.", instanceId);
             // Wait for the instance to start executing
-            return await starter.WaitForCompletionOrCreateCheckStatusResponseAsync(req, instanceId, TimeSpan.FromSeconds(15));
+            await starter.WaitForInstanceStartAsync(instanceId);
+            return new OkResult();
         }
         catch (Exception e)
         {
@@ -151,7 +153,7 @@ public class Channel
         }
     }
 
-    [FunctionName(nameof(UpdateChannel_Http))]
+    [Function(nameof(UpdateChannel_Http))]
     [OpenApiOperation(operationId: nameof(UpdateChannel_Http), tags: new[] { nameof(Channel) })]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
@@ -159,7 +161,7 @@ public class Channel
     public async Task<IActionResult> UpdateChannel_Http(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "Channel")]
         HttpRequest req,
-        [DurableClient] IDurableClient starter)
+        [DurableClient] DurableTaskClient starter)
     {
         try
         {
@@ -176,8 +178,8 @@ public class Channel
             var data = JsonSerializer.Deserialize<UpdateChannelRequest>(requestBody)
                        ?? throw new InvalidOperationException("Invalid request body!!");
 
-            await starter.StartNewAsync(
-                orchestratorFunctionName: nameof(UpdateChannel_Durable),
+            await starter.ScheduleNewOrchestrationInstanceAsync(
+                orchestratorName: nameof(UpdateChannel_Durable),
                 input: data);
 
             return new OkResult();
@@ -189,11 +191,12 @@ public class Channel
         }
     }
 
-    [FunctionName(nameof(UpdateChannel_Durable))]
+    [Function(nameof(UpdateChannel_Durable))]
     public bool UpdateChannel_Durable(
-        [OrchestrationTrigger] IDurableOrchestrationContext context)
+        [OrchestrationTrigger] TaskOrchestrationContext context)
     {
         var data = context.GetInput<UpdateChannelRequest>();
+        if (null == data) throw new InvalidOperationException("Invalid request body!!");
         _ = Task.Run(async () =>
         {
             _logger.Information("Start updating channel {channelId}", data.id);
@@ -219,7 +222,7 @@ public class Channel
         return true;
     }
 
-    [FunctionName(nameof(EnableChannelAsync))]
+    [Function(nameof(EnableChannelAsync))]
     [OpenApiOperation(operationId: nameof(EnableChannelAsync), tags: new[] { nameof(Channel) })]
     [OpenApiRequestBody("application/json", typeof(EnableChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
@@ -258,7 +261,7 @@ public class Channel
         }
     }
 
-    [FunctionName(nameof(HideChannelAsync))]
+    [Function(nameof(HideChannelAsync))]
     [OpenApiOperation(operationId: nameof(HideChannelAsync), tags: new[] { nameof(Channel) })]
     [OpenApiRequestBody("application/json", typeof(HideChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]

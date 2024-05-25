@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Interfaces;
 using Minio;
+using Minio.DataModel.Args;
 using Minio.Exceptions;
 using Serilog;
 
