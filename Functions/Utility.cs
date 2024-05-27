@@ -37,9 +37,7 @@ public class Utility
     private void Wake()
     {
 #if !RELEASE
-#pragma warning disable IDE0022 // 使用方法的運算式主體
         _logger.Verbose("Wake executed at: {time}", System.DateTime.Now);
-#pragma warning restore IDE0022 // 使用方法的運算式主體
 #endif
     }
 }
