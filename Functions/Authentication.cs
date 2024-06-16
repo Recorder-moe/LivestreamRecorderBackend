@@ -1,34 +1,32 @@
-using LivestreamRecorderBackend.Interfaces;
-using LivestreamRecorderBackend.Services.Authentication;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Extensions;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
-using Serilog;
 using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
+using LivestreamRecorderBackend.Interfaces;
+using LivestreamRecorderBackend.Services.Authentication;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.Extensions.Primitives;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using Log = LivestreamRecorderBackend.Helper.Log;
 
 namespace LivestreamRecorderBackend.Functions;
 
-public class Authentication
+// ReSharper disable once ClassNeverInstantiated.Global
+public class Authentication(GitHubService githubService)
 {
-    private static ILogger Logger => Helper.Log.Logger;
-    private readonly string _frontEndUri;
-    private readonly IAuthenticationCodeHandlerService _githubService;
+    private readonly string _frontEndUri = Environment.GetEnvironmentVariable("FrontEndUri") ?? "http://localhost:4200";
+    private readonly IAuthenticationCodeHandlerService _githubService = githubService;
 
-    public Authentication(GithubService githubService)
-    {
-        _frontEndUri = Environment.GetEnvironmentVariable("FrontEndUri") ?? "http://localhost:4200";
-        _githubService = githubService;
-    }
+    private static ILogger Logger => Log.Logger;
 
-    [Function(nameof(GithubSignin))]
-    [OpenApiOperation(operationId: nameof(GithubSignin), tags: new[] { "Authentication" })]
+    [Function(nameof(GitHubSignin))]
+    [OpenApiOperation(operationId: nameof(GitHubSignin), tags: ["Authentication"])]
     [OpenApiParameter(name: "code", In = ParameterLocation.Query, Required = true, Type = typeof(string))]
     [OpenApiParameter(name: "state", In = ParameterLocation.Query, Required = true, Type = typeof(string))]
     [OpenApiParameter(name: "error", In = ParameterLocation.Query, Required = false, Type = typeof(string))]
@@ -36,11 +34,11 @@ public class Authentication
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.BadRequest, Description = "BadRequest")]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.Redirect, Description = "Success")]
     // skipcq: CS-R1073
-    public async Task<IActionResult> GithubSignin(
+    public async Task<IActionResult> GitHubSignin(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "signin-github")]
         HttpRequest req)
     {
-        Logger.Debug($"{nameof(GithubSignin)} triggered");
+        Logger.Debug($"{nameof(GitHubSignin)} triggered");
 
         string code = req.Query["code"]!;
         string state = req.Query["state"]!;
@@ -55,10 +53,10 @@ public class Authentication
             throw new InvalidOperationException(error);
         }
 
-        req.Headers.TryGetValue("Referer", out var referer);
-        var backend = referer.Count != 0 ? referer.First() ?? "" : req.GetDisplayUrl();
+        req.Headers.TryGetValue("Referer", out StringValues referer);
+        string backend = referer.Count != 0 ? referer.First() ?? "" : req.GetDisplayUrl();
 
-        var idToken = await _githubService.GetIdTokenAsync(
+        string idToken = await _githubService.GetIdTokenAsync(
             authorizationCode: code,
             redirectUri: AuthenticationService.GetRedirectUri(backend, "api/signin-github"));
 

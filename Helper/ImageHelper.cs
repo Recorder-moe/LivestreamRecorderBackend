@@ -1,8 +1,8 @@
-﻿using Serilog;
-using System.Configuration;
+﻿using System.Configuration;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Serilog;
 using Xabe.FFmpeg;
 
 namespace LivestreamRecorderBackend.Helper;
@@ -13,9 +13,9 @@ public static class ImageHelper
 
     public static async Task<string> ConvertToAvifAsync(string path)
     {
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var extension = isWindows ? ".exe" : "";
-        var ffmpegPath = "./ffmpeg" + extension;
+        bool isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        string extension = isWindows ? ".exe" : "";
+        string ffmpegPath = "./ffmpeg" + extension;
 
         if (File.Exists(ffmpegPath))
         {
@@ -23,20 +23,20 @@ public static class ImageHelper
         }
         else
         {
-            var (_, fFmpegPath) = YoutubeDL.WhereIs();
+            (_, string? fFmpegPath) = YoutubeDL.WhereIs();
             ffmpegPath = fFmpegPath ?? throw new ConfigurationErrorsException("FFmpeg is missing.");
         }
 
         FFmpeg.SetExecutablesPath(Path.GetDirectoryName(ffmpegPath), "ffmpeg" + extension, "ffprobe" + extension);
 
-        var mediaInfo = await FFmpeg.GetMediaInfo(path);
-        var outputPath = Path.ChangeExtension(path, ".avif");
+        IMediaInfo? mediaInfo = await FFmpeg.GetMediaInfo(path);
+        string outputPath = Path.ChangeExtension(path, ".avif");
 
-        var conversion = FFmpeg.Conversions.New()
-                               .AddStream(mediaInfo.Streams)
-                               .AddParameter("-c:v libaom-av1 -still-picture 1")
-                               .SetOutput(outputPath)
-                               .SetOverwriteOutput(true);
+        IConversion? conversion = FFmpeg.Conversions.New()
+                                        .AddStream(mediaInfo.Streams)
+                                        .AddParameter("-c:v libaom-av1 -still-picture 1")
+                                        .SetOutput(outputPath)
+                                        .SetOverwriteOutput(true);
 
         conversion.OnProgress += (_, e)
             => Logger.Verbose("Progress: {progress}%", e.Percent);
