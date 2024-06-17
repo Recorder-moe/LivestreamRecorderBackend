@@ -1,24 +1,18 @@
+using System;
+using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
-using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Serilog;
 
 namespace LivestreamRecorderBackend.Functions;
 
-public class Utility
+// ReSharper disable once ClassNeverInstantiated.Global
+public class Utility(ILogger logger)
 {
-    private readonly ILogger _logger;
-
-    public Utility(
-        ILogger logger)
-    {
-        _logger = logger;
-    }
-
     [Function(nameof(Wake))]
-    [OpenApiOperation(operationId: nameof(Wake), tags: new[] { nameof(Utility) })]
+    [OpenApiOperation(operationId: nameof(Wake), tags: [nameof(Utility)])]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Waked.")]
     public IActionResult Wake(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Utility/Wake")]
@@ -37,7 +31,7 @@ public class Utility
     private void Wake()
     {
 #if !RELEASE
-        _logger.Verbose("Wake executed at: {time}", System.DateTime.Now);
+        logger.Verbose("Wake executed at: {time}", DateTime.Now);
 #endif
     }
 }

@@ -25,15 +25,15 @@ internal class GetUserResponse
 
     [JsonPropertyName(nameof(Note))] public string? Note { get; set; }
 
+    [JsonPropertyName(nameof(IsAdmin))] public bool IsAdmin { get; set; }
+
     [JsonPropertyName(nameof(GoogleUID))]
     // ReSharper disable InconsistentNaming
     public string? GoogleUID { get; set; }
 
-    [JsonPropertyName(nameof(GithubUID))] public string? GithubUID { get; set; }
+    [JsonPropertyName(nameof(GitHubUID))] public string? GitHubUID { get; set; }
 
     [JsonPropertyName(nameof(MicrosoftUID))]
     public string? MicrosoftUID { get; set; }
     // ReSharper restore InconsistentNaming
-
-    [JsonPropertyName(nameof(IsAdmin))] public bool IsAdmin { get; set; }
 }

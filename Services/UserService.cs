@@ -1,97 +1,47 @@
-﻿using Gravatar;
-#if COSMOSDB
+﻿#if COSMOSDB
 using LivestreamRecorder.DB.CosmosDB;
 #elif COUCHDB
 using LivestreamRecorder.DB.CouchDB;
 #endif
+using System;
+using System.Linq;
+using System.Security.Claims;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Gravatar;
 using LivestreamRecorder.DB.Exceptions;
 using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.DTO.User;
 using LivestreamRecorderBackend.Services.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 using Serilog;
-using System;
-using System.Linq;
-using System.Security.Claims;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using Log = LivestreamRecorderBackend.Helper.Log;
 
 namespace LivestreamRecorderBackend.Services;
 
-public class UserService
+public partial class UserService(ILogger logger,
+                                 IUserRepository userRepository,
+                                 UnitOfWork_Private unitOfWorkPrivate,
+                                 AuthenticationService authenticationService)
 {
-    private readonly IUnitOfWork _unitOfWorkPrivate;
-    private readonly AuthenticationService _authenticationService;
-    private readonly IUserRepository _userRepository;
-    private readonly ILogger _logger;
+#pragma warning disable CA1859
+    private readonly IUnitOfWork _unitOfWorkPrivate = unitOfWorkPrivate;
+#pragma warning restore CA1859
 
-    public UserService(
-        ILogger logger,
-        IUserRepository userRepository,
-        // ReSharper disable once SuggestBaseTypeForParameterInConstructor
-        UnitOfWork_Private unitOfWorkPrivate,
-        AuthenticationService authenticationService)
+    internal Task<User?> GetUserByIdAsync(string id)
     {
-        _logger = logger;
-        _userRepository = userRepository;
-        _unitOfWorkPrivate = unitOfWorkPrivate;
-        _authenticationService = authenticationService;
+        return userRepository.GetByIdAsync(id);
     }
-
-    internal Task<User?> GetUserByIdAsync(string id) => _userRepository.GetByIdAsync(id);
-
-    // ReSharper disable InconsistentNaming
-    /// <summary>
-    /// Get User by GoogleUID
-    /// </summary>
-    /// <param name="googleUID"></param>
-    /// <returns>User</returns>
-    /// <exception cref="EntityNotFoundException">User not found.</exception>
-    private User GetUserByGoogleUID(string googleUID)
-        => _userRepository.Where(p => p.GoogleUID == googleUID).SingleOrDefault()
-           ?? throw new EntityNotFoundException($"Entity with GoogleUID: {googleUID} was not found.");
-
-    /// <summary>
-    /// Get User by GithubUID
-    /// </summary>
-    /// <param name="githubUID"></param>
-    /// <returns>User</returns>
-    /// <exception cref="EntityNotFoundException">User not found.</exception>
-    private User GetUserByGithubUID(string githubUID)
-        => _userRepository.Where(p => p.GithubUID == githubUID).SingleOrDefault()
-           ?? throw new EntityNotFoundException($"Entity with GithubUID: {githubUID} was not found.");
-
-
-    /// <summary>
-    /// Get User by GithubUID
-    /// </summary>
-    /// <param name="microsoftUID"></param>
-    /// <returns>User</returns>
-    /// <exception cref="EntityNotFoundException">User not found.</exception>
-    private User GetUserByMicrosoftUID(string microsoftUID)
-        => _userRepository.Where(p => p.MicrosoftUID == microsoftUID).SingleOrDefault()
-           ?? throw new EntityNotFoundException($"Entity with MicrosoftUID: {microsoftUID} was not found.");
-
-    /// <summary>
-    /// Get User by GithubUID
-    /// </summary>
-    /// <param name="discordUID"></param>
-    /// <returns>User</returns>
-    /// <exception cref="EntityNotFoundException">User not found.</exception>
-    private User GetUserByDiscordUID(string discordUID)
-        => _userRepository.Where(p => p.DiscordUID == discordUID).SingleOrDefault()
-           ?? throw new EntityNotFoundException($"Entity with DiscordUID: {discordUID} was not found.");
-    // ReSharper restore InconsistentNaming
-
 
     internal async Task CreateOrUpdateUserWithOAuthClaimsAsync(ClaimsPrincipal claimsPrincipal)
     {
-        var userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
-                       ?? claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value
-                       ?? claimsPrincipal.FindFirst(ClaimTypes.GivenName)?.Value;
+        string? userName = claimsPrincipal.Identity?.Name?.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
+                           ?? claimsPrincipal.FindFirst(ClaimTypes.Name)?.Value
+                           ?? claimsPrincipal.FindFirst(ClaimTypes.GivenName)?.Value;
 
-        var authType = claimsPrincipal.Identity?.AuthenticationType;
+        string? authType = claimsPrincipal.Identity?.AuthenticationType;
 
         User? user;
         try
@@ -101,16 +51,16 @@ public class UserService
         catch (EntityNotFoundException)
         {
             user = MigrateUser(claimsPrincipal);
-            if (null != user) await _userRepository.AddOrUpdateAsync(user);
+            if (null != user) await userRepository.AddOrUpdateAsync(user);
         }
 
-        var userEmail = user?.Email
-                        ?? claimsPrincipal.FindFirst(ClaimTypes.Email)?.Value
-                        ?? claimsPrincipal.Identity?.Name;
+        string? userEmail = user?.Email
+                            ?? claimsPrincipal.FindFirst(ClaimTypes.Email)?.Value
+                            ?? claimsPrincipal.Identity?.Name;
 
-        var userPicture = userEmail?.ToGravatar(200);
+        string? userPicture = userEmail?.ToGravatar(200);
 
-        var hasUser = (await _userRepository.CountAsync()) > 0;
+        bool hasUser = await userRepository.CountAsync() > 0;
         var isRegistrationAllowed = bool.Parse(Environment.GetEnvironmentVariable("Registration_allowed") ?? "false");
 
         if (null == user)
@@ -118,7 +68,7 @@ public class UserService
             // First user or registration allowed
             if (!hasUser || isRegistrationAllowed)
             {
-                user = new User()
+                user = new User
                 {
                     id = Guid.NewGuid().ToString().Replace("-", ""),
                     UserName = userName ?? "Valuable User",
@@ -128,7 +78,7 @@ public class UserService
                     IsAdmin = !hasUser // First user is admin
                 };
 
-                var uid = GetUID(claimsPrincipal);
+                string? uid = GetUID(claimsPrincipal);
 
                 switch (authType)
                 {
@@ -136,7 +86,7 @@ public class UserService
                         user.GoogleUID = uid;
                         break;
                     case "github":
-                        user.GithubUID = uid;
+                        user.GitHubUID = uid;
                         break;
                     case "aad":
                         user.MicrosoftUID = uid;
@@ -145,15 +95,15 @@ public class UserService
                         user.DiscordUID = uid;
                         break;
                     default:
-                        _logger.Error("Authentication Type {authType} is not support!!", authType);
+                        logger.Error("Authentication Type {authType} is not support!!", authType);
                         throw new NotSupportedException($"Authentication Type {authType} is not support!!");
                 }
 
                 // Prevent GUID conflicts
-                if (_userRepository.Exists(user.id))
+                if (userRepository.Exists(user.id))
                     user.id = Guid.NewGuid().ToString().Replace("-", "");
 
-                await _userRepository.AddOrUpdateAsync(user);
+                await userRepository.AddOrUpdateAsync(user);
             }
             else
             {
@@ -165,14 +115,14 @@ public class UserService
         if (user.Picture != userPicture)
         {
             user.Picture = userPicture;
-            await _userRepository.AddOrUpdateAsync(user);
+            await userRepository.AddOrUpdateAsync(user);
         }
 
         _unitOfWorkPrivate.Commit();
     }
 
     /// <summary>
-    /// Update user
+    ///     Update user
     /// </summary>
     /// <param name="request">Patch update request.</param>
     /// <param name="user">User to update.</param>
@@ -180,12 +130,9 @@ public class UserService
     /// <exception cref="InvalidOperationException">User id is not match.</exception>
     internal async Task<User> UpdateUserAsync(UpdateUserRequest request, User user)
     {
-        if (user.id != request.id)
-        {
-            throw new InvalidOperationException("User id is not match!!");
-        }
+        if (user.id != request.id) throw new InvalidOperationException("User id is not match!!");
 
-        await _userRepository.ReloadEntityFromDBAsync(user);
+        await userRepository.ReloadEntityFromDBAsync(user);
 
         user.UserName = request.UserName ?? user.UserName;
         // Only update if email invalid
@@ -193,10 +140,8 @@ public class UserService
             && !string.IsNullOrWhiteSpace(request.Email)
             && validateEmail(request.Email))
         {
-            if (_userRepository.Where(p => p.Email == request.Email).ToList().Any())
-            {
+            if (userRepository.Where(p => p.Email == request.Email).ToList().Count != 0)
                 throw new InvalidOperationException("Email is already exists.");
-            }
 
             user.Email = request.Email;
         }
@@ -205,43 +150,49 @@ public class UserService
 
         user.Picture = user.Email?.ToGravatar(200) ?? user.Picture;
 
-        user = await _userRepository.AddOrUpdateAsync(user);
+        user = await userRepository.AddOrUpdateAsync(user);
         _unitOfWorkPrivate.Commit();
         return user;
 
         static bool validateEmail(string emailString)
         {
-            // https://github.com/microsoft/referencesource/blob/master/System.ComponentModel.DataAnnotations/DataAnnotations/EmailAddressAttribute.cs#LL54C11-L54C11
-            // ReSharper disable StringLiteralTypo
-            const string pattern =
-                @"^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$";
-            // ReSharper restore StringLiteralTypo
-
-            var result = Regex.IsMatch(emailString, pattern, RegexOptions.IgnoreCase);
+            bool result = EmailRegex().IsMatch(emailString);
             return result;
         }
     }
 
     /// <summary>
-    /// Check if UID exists.
+    ///     Email Regex
+    /// </summary>
+    /// <returns></returns>
+    /// <remarks><see href="https://github.com/microsoft/referencesource/blob/master/System.ComponentModel.DataAnnotations/DataAnnotations/EmailAddressAttribute.cs#LL54C11-L54C11"/></remarks>
+    [GeneratedRegex(
+        // ReSharper disable StringLiteralTypo
+        @"^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$",
+        // ReSharper restore StringLiteralTypo
+        RegexOptions.IgnoreCase,
+        "zh-TW")]
+    private static partial Regex EmailRegex();
+
+    /// <summary>
+    ///     Check if UID exists.
     /// </summary>
     /// <param name="principal"></param>
     /// <exception cref="InvalidOperationException"></exception>
     // ReSharper disable once InconsistentNaming
     private string? GetUID(ClaimsPrincipal principal)
     {
-        var uid = principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
-        if (string.IsNullOrEmpty(uid))
-        {
-            Helper.Log.LogClaimsPrincipal(principal);
-            _logger.Error("UID is null!");
-        }
+        string? uid = principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+        if (!string.IsNullOrEmpty(uid)) return uid;
+
+        Log.LogClaimsPrincipal(principal);
+        logger.Error("UID is null!");
 
         return uid;
     }
 
     /// <summary>
-    /// Get User from ClaimsPrincipal
+    ///     Get User from ClaimsPrincipal
     /// </summary>
     /// <param name="principal"></param>
     /// <returns></returns>
@@ -250,8 +201,8 @@ public class UserService
     /// <exception cref="EntityNotFoundException">User not found.</exception>
     private User GetUserFromClaimsPrincipal(ClaimsPrincipal principal)
     {
-        var authType = principal.Identity!.AuthenticationType;
-        var uid = GetUID(principal);
+        string? authType = principal.Identity!.AuthenticationType;
+        string? uid = GetUID(principal);
         if (string.IsNullOrEmpty(uid)) throw new InvalidOperationException("UID is null!");
 
         switch (authType)
@@ -259,59 +210,59 @@ public class UserService
             case "google":
                 return GetUserByGoogleUID(uid);
             case "github":
-                return GetUserByGithubUID(uid);
+                return GetUserByGitHubUID(uid);
             case "aad":
                 return GetUserByMicrosoftUID(uid);
             case "discord":
                 return GetUserByDiscordUID(uid);
             default:
-                _logger.Error("Authentication Type {authType} is not support!!", authType);
+                logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
         }
     }
 
     private User? MigrateUser(ClaimsPrincipal principal)
     {
-        var authType = principal.Identity!.AuthenticationType;
-        var uid = GetUID(principal);
+        string? authType = principal.Identity!.AuthenticationType;
+        string? uid = GetUID(principal);
 
         if (null == principal.Identity.Name) return null;
 
-        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        string? email = principal.FindFirst(ClaimTypes.Email)?.Value;
         if (null == email) return null;
-        var user = _userRepository.Where(p => p.Email == email).SingleOrDefault();
+        User? user = userRepository.Where(p => p.Email == email).SingleOrDefault();
         if (null == user) return null;
 
         switch (authType)
         {
             case "google":
-                _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
+                logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GoogleUID, uid);
                 user.GoogleUID = uid;
                 break;
             case "github":
-                _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GithubUID, uid);
-                user.GithubUID = uid;
+                logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}", principal.Identity.Name, authType, user.GitHubUID, uid);
+                user.GitHubUID = uid;
                 break;
             case "aad":
-                _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}",
-                    principal.Identity.Name,
-                    authType,
-                    user.MicrosoftUID,
-                    uid);
+                logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}",
+                               principal.Identity.Name,
+                               authType,
+                               user.MicrosoftUID,
+                               uid);
 
                 user.MicrosoftUID = uid;
                 break;
             case "discord":
-                _logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}",
-                    principal.Identity.Name,
-                    authType,
-                    user.MicrosoftUID,
-                    uid);
+                logger.Warning("Migrate user {email} from {AuthType} {OldUID} to {newUID}",
+                               principal.Identity.Name,
+                               authType,
+                               user.MicrosoftUID,
+                               uid);
 
                 user.DiscordUID = uid;
                 break;
             default:
-                _logger.Error("Authentication Type {authType} is not support!!", authType);
+                logger.Error("Authentication Type {authType} is not support!!", authType);
                 throw new NotSupportedException($"Authentication Type {authType} is not support!!");
         }
 
@@ -320,20 +271,22 @@ public class UserService
 
     public Task<User?> AuthAndGetUserAsync(IHeaderDictionary headers)
     {
-        if (!headers.TryGetValue("Authorization", out var authHeader)
+        if (!headers.TryGetValue("Authorization", out StringValues authHeader)
             || authHeader.Count == 0) return Task.FromResult<User?>(null);
 
-        var token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
+        string? token = authHeader.First()?.Split(" ", StringSplitOptions.RemoveEmptyEntries).Last();
         return null == token ? Task.FromResult<User?>(null) : AuthAndGetUserAsync(token);
     }
 
     private async Task<User?> AuthAndGetUserAsync(string token)
-        => AuthAndGetUser(await _authenticationService.GetUserInfoFromTokenAsync(token));
+    {
+        return AuthAndGetUser(await authenticationService.GetUserInfoFromTokenAsync(token));
+    }
 
     private User? AuthAndGetUser(ClaimsPrincipal principal)
     {
 #if !RELEASE
-        Helper.Log.LogClaimsPrincipal(principal);
+        Log.LogClaimsPrincipal(principal);
 #endif
 
         try
@@ -347,11 +300,61 @@ public class UserService
         {
             if (e is NotSupportedException or EntityNotFoundException)
             {
-                _logger.Error(e, "User not found!!");
+                logger.Error(e, "User not found!!");
                 return null;
             }
 
             throw;
         }
     }
+
+    // ReSharper disable InconsistentNaming (UID)
+    /// <summary>
+    ///     Get User by GoogleUID
+    /// </summary>
+    /// <param name="googleUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    private User GetUserByGoogleUID(string googleUID)
+    {
+        return userRepository.Where(p => p.GoogleUID == googleUID).SingleOrDefault()
+               ?? throw new EntityNotFoundException($"Entity with GoogleUID: {googleUID} was not found.");
+    }
+
+    /// <summary>
+    ///     Get User by GitHubUID
+    /// </summary>
+    /// <param name="githubUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    private User GetUserByGitHubUID(string githubUID)
+    {
+        return userRepository.Where(p => p.GitHubUID == githubUID).SingleOrDefault()
+               ?? throw new EntityNotFoundException($"Entity with GitHubUID: {githubUID} was not found.");
+    }
+
+    /// <summary>
+    ///     Get User by GitHubUID
+    /// </summary>
+    /// <param name="microsoftUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    private User GetUserByMicrosoftUID(string microsoftUID)
+    {
+        return userRepository.Where(p => p.MicrosoftUID == microsoftUID).SingleOrDefault()
+               ?? throw new EntityNotFoundException($"Entity with MicrosoftUID: {microsoftUID} was not found.");
+    }
+
+    /// <summary>
+    ///     Get User by GitHubUID
+    /// </summary>
+    /// <param name="discordUID"></param>
+    /// <returns>User</returns>
+    /// <exception cref="EntityNotFoundException">User not found.</exception>
+    private User GetUserByDiscordUID(string discordUID)
+    {
+        return userRepository.Where(p => p.DiscordUID == discordUID).SingleOrDefault()
+               ?? throw new EntityNotFoundException($"Entity with DiscordUID: {discordUID} was not found.");
+    }
+    // ReSharper restore InconsistentNaming
 }

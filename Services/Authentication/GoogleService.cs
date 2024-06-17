@@ -1,31 +1,21 @@
-﻿using LivestreamRecorderBackend.Interfaces;
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
+using LivestreamRecorderBackend.Interfaces;
 
 namespace LivestreamRecorderBackend.Services.Authentication;
 
-public class GoogleService : IAuthenticationHandlerService
+public class GoogleService(IHttpClientFactory httpClientFactory) : IAuthenticationHandlerService
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-
-    public GoogleService(
-        IHttpClientFactory httpClientFactory)
-    {
-        _httpClientFactory = httpClientFactory;
-    }
-
     public async Task<ClaimsPrincipal> GetUserInfoFromTokenAsync(string token)
     {
-        var httpClient = _httpClientFactory.CreateClient("client");
+        HttpClient httpClient = httpClientFactory.CreateClient("client");
         httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
-        var response = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
+        HttpResponseMessage response = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
         if (!response.IsSuccessStatusCode)
-        {
             throw new HttpRequestException(
                 $"An error occurred when retrieving Google user information ({response.StatusCode}). Please check if the authentication information is correct.");
-        }
 
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var identity = new ClaimsIdentity("google");

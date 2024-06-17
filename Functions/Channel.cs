@@ -1,11 +1,3 @@
-using LivestreamRecorder.DB.Exceptions;
-using LivestreamRecorderBackend.DTO.Channel;
-using LivestreamRecorderBackend.Helper;
-using LivestreamRecorderBackend.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
-using Serilog;
 using System;
 using System.IO;
 using System.Linq;
@@ -14,32 +6,29 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
+using LivestreamRecorder.DB.Exceptions;
+using LivestreamRecorderBackend.DTO.Channel;
+using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Models;
+using LivestreamRecorderBackend.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
+using Microsoft.OpenApi.Models;
+using Serilog;
 
 namespace LivestreamRecorderBackend.Functions;
 
-public class Channel
+// ReSharper disable once ClassNeverInstantiated.Global
+public class Channel(ILogger logger,
+                     ChannelService channelService,
+                     UserService userService)
 {
-    private readonly ILogger _logger;
-    private readonly ChannelService _channelService;
-    private readonly UserService _userService;
-
-    public Channel(
-        ILogger logger,
-        ChannelService channelService,
-        UserService userService)
-    {
-        _logger = logger;
-        _channelService = channelService;
-        _userService = userService;
-    }
-
     [Function(nameof(AddChannelAsync))]
-    [OpenApiOperation(operationId: nameof(AddChannelAsync), tags: new[] { nameof(Channel) })]
+    [OpenApiOperation(operationId: nameof(AddChannelAsync), tags: [nameof(Channel)])]
     [OpenApiRequestBody("application/json", typeof(AddChannelRequest), Required = true)]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     public async Task<IActionResult> AddChannelAsync(
@@ -49,7 +38,7 @@ public class Channel
     {
         try
         {
-            var user = await _userService.AuthAndGetUserAsync(req.Headers);
+            LivestreamRecorder.DB.Models.User? user = await userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
@@ -61,12 +50,12 @@ public class Channel
                 req.Body = new MemoryStream(Encoding.ASCII.GetBytes(requestBody));
             }
 
-            var data = JsonSerializer.Deserialize<AddChannelRequest>(requestBody)
-                       ?? throw new InvalidOperationException("Invalid request body!!");
+            AddChannelRequest data = JsonSerializer.Deserialize<AddChannelRequest>(requestBody)
+                                     ?? throw new InvalidOperationException("Invalid request body!!");
 
             string channelId;
             string channelName;
-            var url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(new[] { '/' });
+            string url = data.Url.Split('?', StringSplitOptions.RemoveEmptyEntries)[0].TrimEnd(['/']);
 
             string platform;
             if (url.Contains("youtube"))
@@ -87,7 +76,7 @@ public class Channel
             }
             else
             {
-                _logger.Warning("Unsupported platform for {url}", url);
+                logger.Warning("Unsupported platform for {url}", url);
                 throw new InvalidOperationException($"Unsupported platform for {url}.");
             }
 
@@ -95,10 +84,10 @@ public class Channel
             switch (platform)
             {
                 case "Youtube":
-                    var info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
+                    YtdlpVideoData._YtdlpVideoData? info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
                     if (null == info)
                     {
-                        _logger.Warning("Failed to get channel info for {url}", data.Url);
+                        logger.Warning("Failed to get channel info for {url}", data.Url);
                         return new OkObjectResult("Failed");
                     }
 
@@ -116,16 +105,16 @@ public class Channel
 
             channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, platform);
 
-            var channel = await _channelService.GetByChannelIdAndSourceAsync(channelId, platform)
-                          ?? await _channelService.AddChannelAsync(id: channelId,
-                              source: platform,
-                              channelName: channelName);
+            LivestreamRecorder.DB.Models.Channel channel = await channelService.GetByChannelIdAndSourceAsync(channelId, platform)
+                                                           ?? await channelService.AddChannelAsync(id: channelId,
+                                                                                                   source: platform,
+                                                                                                   channelName: channelName);
 
-            _logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
+            logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
-            var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync(
+            string instanceId = await starter.ScheduleNewOrchestrationInstanceAsync(
                 orchestratorName: nameof(UpdateChannel_Durable),
-                input: new UpdateChannelRequest()
+                input: new UpdateChannelRequest
                 {
                     id = channelId,
                     Source = channel.Source,
@@ -133,28 +122,25 @@ public class Channel
                                      || channel.Source == "FC2",
                     ChannelName = data.Name ?? channelName ?? channelId,
                     Avatar = data.Avatar,
-                    Banner = data.Banner,
+                    Banner = data.Banner
                 });
 
-            _logger.Information("Started orchestration with ID {instanceId}.", instanceId);
+            logger.Information("Started orchestration with ID {instanceId}.", instanceId);
             // Wait for the instance to start executing
             await starter.WaitForInstanceStartAsync(instanceId);
             return new OkResult();
         }
         catch (Exception e)
         {
-            if (e is InvalidOperationException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
+            if (e is InvalidOperationException) return new BadRequestObjectResult(e.Message);
 
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
+            logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
             return new InternalServerErrorResult();
         }
     }
 
     [Function(nameof(UpdateChannel_Http))]
-    [OpenApiOperation(operationId: nameof(UpdateChannel_Http), tags: new[] { nameof(Channel) })]
+    [OpenApiOperation(operationId: nameof(UpdateChannel_Http), tags: [nameof(Channel)])]
     [OpenApiParameter(name: "channelId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "ChannelId")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string), Description = "Response")]
     // skipcq: CS-R1073
@@ -165,7 +151,7 @@ public class Channel
     {
         try
         {
-            var user = await _userService.AuthAndGetUserAsync(req.Headers);
+            LivestreamRecorder.DB.Models.User? user = await userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
@@ -175,8 +161,8 @@ public class Channel
                 requestBody = await streamReader.ReadToEndAsync();
             }
 
-            var data = JsonSerializer.Deserialize<UpdateChannelRequest>(requestBody)
-                       ?? throw new InvalidOperationException("Invalid request body!!");
+            UpdateChannelRequest data = JsonSerializer.Deserialize<UpdateChannelRequest>(requestBody)
+                                        ?? throw new InvalidOperationException("Invalid request body!!");
 
             await starter.ScheduleNewOrchestrationInstanceAsync(
                 orchestratorName: nameof(UpdateChannel_Durable),
@@ -186,7 +172,7 @@ public class Channel
         }
         catch (Exception e)
         {
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateChannel_Http), e);
+            logger.Error("Unhandled exception in {apiname}: {exception}", nameof(UpdateChannel_Http), e);
             return new InternalServerErrorResult();
         }
     }
@@ -195,35 +181,33 @@ public class Channel
     public bool UpdateChannel_Durable(
         [OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        var data = context.GetInput<UpdateChannelRequest>();
+        UpdateChannelRequest? data = context.GetInput<UpdateChannelRequest>();
         if (null == data) throw new InvalidOperationException("Invalid request body!!");
         _ = Task.Run(async () =>
         {
-            _logger.Information("Start updating channel {channelId}", data.id);
-            var channel = await _channelService.GetByChannelIdAndSourceAsync(data.id, data.Source);
+            logger.Information("Start updating channel {channelId}", data.id);
+            LivestreamRecorder.DB.Models.Channel? channel = await channelService.GetByChannelIdAndSourceAsync(data.id, data.Source);
             if (null == channel)
             {
-                _logger.Warning("Channel {channelId} not found when updating", data.id);
+                logger.Warning("Channel {channelId} not found when updating", data.id);
                 throw new EntityNotFoundException(data.id);
             }
 
             if (null != data.Avatar)
-            {
                 data.Avatar = data.Avatar.Replace("_bigger", "") // Twitcasting
                                   .Replace("70x70", "300x300"); // Twitch
-            }
 
-            await _channelService.UpdateChannelDataAsync(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
+            await channelService.UpdateChannelDataAsync(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
 
-            await _channelService.EditMonitoringAsync(data.id, data.Source, true);
-            _logger.Information("Finish updating channel {channelId}", data.id);
+            await channelService.EditMonitoringAsync(data.id, data.Source, true);
+            logger.Information("Finish updating channel {channelId}", data.id);
         });
 
         return true;
     }
 
     [Function(nameof(EnableChannelAsync))]
-    [OpenApiOperation(operationId: nameof(EnableChannelAsync), tags: new[] { nameof(Channel) })]
+    [OpenApiOperation(operationId: nameof(EnableChannelAsync), tags: [nameof(Channel)])]
     [OpenApiRequestBody("application/json", typeof(EnableChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
     public async Task<IActionResult> EnableChannelAsync(
@@ -232,7 +216,7 @@ public class Channel
     {
         try
         {
-            var user = await _userService.AuthAndGetUserAsync(req.Headers);
+            LivestreamRecorder.DB.Models.User? user = await userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
@@ -242,27 +226,24 @@ public class Channel
                 requestBody = await streamReader.ReadToEndAsync();
             }
 
-            var data = JsonSerializer.Deserialize<EnableChannelRequest>(requestBody)
-                       ?? throw new InvalidOperationException("Invalid request body!!");
+            EnableChannelRequest data = JsonSerializer.Deserialize<EnableChannelRequest>(requestBody)
+                                        ?? throw new InvalidOperationException("Invalid request body!!");
 
-            await _channelService.EditMonitoringAsync(data.id, data.Source, data.Monitoring);
+            await channelService.EditMonitoringAsync(data.id, data.Source, data.Monitoring);
 
             return new OkResult();
         }
         catch (Exception e)
         {
-            if (e is EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
+            if (e is EntityNotFoundException) return new BadRequestObjectResult(e.Message);
 
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(EnableChannelAsync), e);
+            logger.Error("Unhandled exception in {apiname}: {exception}", nameof(EnableChannelAsync), e);
             return new InternalServerErrorResult();
         }
     }
 
     [Function(nameof(HideChannelAsync))]
-    [OpenApiOperation(operationId: nameof(HideChannelAsync), tags: new[] { nameof(Channel) })]
+    [OpenApiOperation(operationId: nameof(HideChannelAsync), tags: [nameof(Channel)])]
     [OpenApiRequestBody("application/json", typeof(HideChannelRequest), Required = true)]
     [OpenApiResponseWithoutBody(HttpStatusCode.OK, Description = "Response")]
     public async Task<IActionResult> HideChannelAsync(
@@ -271,7 +252,7 @@ public class Channel
     {
         try
         {
-            var user = await _userService.AuthAndGetUserAsync(req.Headers);
+            LivestreamRecorder.DB.Models.User? user = await userService.AuthAndGetUserAsync(req.Headers);
             if (null == user) return new UnauthorizedResult();
             if (!user.IsAdmin) return new StatusCodeResult(403);
 
@@ -281,21 +262,18 @@ public class Channel
                 requestBody = await streamReader.ReadToEndAsync();
             }
 
-            var data = JsonSerializer.Deserialize<HideChannelRequest>(requestBody)
-                       ?? throw new InvalidOperationException("Invalid request body!!");
+            HideChannelRequest data = JsonSerializer.Deserialize<HideChannelRequest>(requestBody)
+                                      ?? throw new InvalidOperationException("Invalid request body!!");
 
-            await _channelService.EditHidingAsync(data.id, data.Source, data.Hide);
+            await channelService.EditHidingAsync(data.id, data.Source, data.Hide);
 
             return new OkResult();
         }
         catch (Exception e)
         {
-            if (e is EntityNotFoundException)
-            {
-                return new BadRequestObjectResult(e.Message);
-            }
+            if (e is EntityNotFoundException) return new BadRequestObjectResult(e.Message);
 
-            _logger.Error("Unhandled exception in {apiname}: {exception}", nameof(HideChannelAsync), e);
+            logger.Error("Unhandled exception in {apiname}: {exception}", nameof(HideChannelAsync), e);
             return new InternalServerErrorResult();
         }
     }
