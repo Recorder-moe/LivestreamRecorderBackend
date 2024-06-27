@@ -7,6 +7,7 @@ using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Interfaces;
 using LivestreamRecorderBackend.Services;
 using LivestreamRecorderBackend.Services.Authentication;
+using LivestreamRecorderBackend.Services.PlatformService;
 using LivestreamRecorderBackend.Services.StorageService;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Abstractions;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Configurations;
@@ -15,8 +16,8 @@ using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Minio;
-using Log = LivestreamRecorderBackend.Helper.Log;
 using Serilog;
+using Log = LivestreamRecorderBackend.Helper.Log;
 #if COUCHDB
 using CouchDB.Driver.DependencyInjection;
 using CouchDB.Driver.Options;
@@ -195,7 +196,11 @@ IHostBuilder builder = new HostBuilder()
                            services.AddSingleton<ChannelService>();
                            services.AddSingleton<UserService>();
                            services.AddSingleton<VideoService>();
+
                            services.AddSingleton<Fc2Service>();
+                           services.AddSingleton<TwitcastingService>();
+                           services.AddSingleton<TwitchService>();
+                           services.AddSingleton<YoutubeService>();
 
                            services.AddSingleton<AuthenticationService>();
                            services.AddSingleton<GoogleService>();

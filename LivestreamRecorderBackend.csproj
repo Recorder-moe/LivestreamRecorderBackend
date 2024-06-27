@@ -44,6 +44,7 @@
     <PackageReference Include="CouchDB.NET.DependencyInjection" Version="3.6.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
     <PackageReference Include="Gravatar-t5" Version="1.0.3" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="1.2.1" />
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.7.3" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.0" />
@@ -62,6 +63,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="7.0.1" />
     <PackageReference Include="System.Text.Json" Version="8.0.3" />
+    <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
     <PackageReference Include="ValueInjecter" Version="3.2.0" />
     <PackageReference Include="Xabe.FFmpeg" Version="5.2.6" />
     <PackageReference Include="YoutubeDLSharp" Version="1.1.0" />
