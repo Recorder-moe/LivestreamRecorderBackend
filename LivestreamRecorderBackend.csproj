@@ -34,8 +34,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="LivestreamRecorder.DB\**" />
+    <Compile Remove="LivestreamRecorderBackendTests\**" />
     <EmbeddedResource Remove="LivestreamRecorder.DB\**" />
+    <EmbeddedResource Remove="LivestreamRecorderBackendTests\**" />
     <None Remove="LivestreamRecorder.DB\**" />
+    <None Remove="LivestreamRecorderBackendTests\**" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -46,6 +49,7 @@
     <PackageReference Include="Gravatar-t5" Version="1.0.3" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="1.2.1" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.7.3" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
