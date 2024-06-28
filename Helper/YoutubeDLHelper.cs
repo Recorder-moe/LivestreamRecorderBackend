@@ -1,6 +1,8 @@
-﻿using Serilog;
+﻿using LivestreamRecorderBackend.Json;
+using Serilog;
 using System;
 using System.Configuration;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -29,6 +31,10 @@ internal static partial class YoutubeDL
     /// <param name="flat"></param>
     /// <param name="overrideOptions"></param>
     /// <returns></returns>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code",
+        Justification = $"{nameof(SourceGenerationContext)} is set.")]
 #pragma warning disable CA1068 // CancellationToken 參數必須位於最後
     // skipcq: CS-R1073
     public static async Task<RunResult<YtdlpVideoData>> RunVideoDataFetch_Alt(this YoutubeDLSharp.YoutubeDL ytdl, string url, CancellationToken ct = default, bool flat = true, bool fetchComments = false, OptionSet overrideOptions = null)
@@ -52,6 +58,7 @@ internal static partial class YoutubeDL
             FlatPlaylist = flat,
             WriteComments = fetchComments
         };
+
         if (overrideOptions != null)
         {
             optionSet = optionSet.OverrideOptions(overrideOptions);
@@ -68,21 +75,22 @@ internal static partial class YoutubeDL
                              .Replace("False", "false")
                              .Replace("True", "true");
             // Change json string from 'sth' to "sth"
-            data = new Regex("(?:[\\s:\\[\\{\\(])'([^'\\r\\n\\s]*)'(?:\\s,]}\\))").Replace(data, @"""$1""");
+            data = ChangeJsonStringSingleQuotesToDoubleQuotes().Replace(data, @"""$1""");
             videoData = JsonSerializer.Deserialize<YtdlpVideoData>(
                 data,
                 options: new()
                 {
-                    AllowTrailingCommas = true,
-                    ReadCommentHandling = JsonCommentHandling.Skip,
-                    WriteIndented = true
+                    TypeInfoResolver = SourceGenerationContext.Default
                 });
         };
         FieldInfo fieldInfo = typeof(YoutubeDLSharp.YoutubeDL).GetField("runner", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.GetField | BindingFlags.SetField);
-        (int code, string[] errors) = await (fieldInfo.GetValue(ytdl) as ProcessRunner).RunThrottled(youtubeDLProcess, new[] { url }, optionSet, ct);
+        (int code, string[] errors) = await (fieldInfo.GetValue(ytdl) as ProcessRunner).RunThrottled(youtubeDLProcess, [url], optionSet, ct);
         return new RunResult<YtdlpVideoData>(code == 0, errors, videoData);
     }
 #nullable enable 
+
+    [GeneratedRegex("(?:[\\s:\\[\\{\\(])'([^'\\r\\n\\s]*)'(?:\\s,]}\\))")]
+    private static partial Regex ChangeJsonStringSingleQuotesToDoubleQuotes();
 
     /// <summary>
     /// 尋找程式路徑
@@ -91,53 +99,27 @@ internal static partial class YoutubeDL
     /// <exception cref="BadImageFormatException" >The function is only works in windows.</exception>
     public static (string? YtdlPath, string? FFmpegPath) WhereIs()
     {
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var pathSeparator = isWindows ? ';' : ':';
+        char splitChar = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ';' : ':';
 
         DirectoryInfo TempDirectory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), nameof(LivestreamRecorderBackend)));
 
         // https://stackoverflow.com/a/63021455
-        string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(pathSeparator) ?? Array.Empty<string>();
-        string[] extensions = Environment.GetEnvironmentVariable("PATHEXT")?.Split(pathSeparator) ?? new string[] { string.Empty };
+        string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(splitChar) ?? [];
+        string[] extensions = Environment.GetEnvironmentVariable("PATHEXT")?.Split(splitChar) ?? [""];
 
-        string? _YtdlpPath = (from p in new[]
-                                {
-                                    Environment.CurrentDirectory,
-                                    TempDirectory.FullName,
-                                    isWindows ? @"C:\home\site\wwwroot" : "/home/site/wwwroot"
-                                }.Concat(paths)
+        string? _YtdlpPath = (from p in new[] { Environment.CurrentDirectory, TempDirectory.FullName }.Concat(paths)
                               from e in extensions
                               let path = Path.Combine(p.Trim(), "yt-dlp" + e.ToLower())
                               where File.Exists(path)
                               select path)?.FirstOrDefault();
-        string? _FFmpegPath = (from p in new[]
-                                {
-                                    Environment.CurrentDirectory,
-                                    TempDirectory.FullName,
-                                    isWindows ? @"C:\home\site\wwwroot" : "/home/site/wwwroot"
-                                }.Concat(paths)
+        string? _FFmpegPath = (from p in new[] { Environment.CurrentDirectory, TempDirectory.FullName }.Concat(paths)
                                from e in extensions
                                let path = Path.Combine(p.Trim(), "ffmpeg" + e.ToLower())
                                where File.Exists(path)
                                select path)?.FirstOrDefault();
 
-        if (string.IsNullOrEmpty(_YtdlpPath))
-        {
-            Logger.Fatal("Cannot found yt-dlp");
-        }
-        else
-        {
-            Logger.Debug("Found yt-dlp at {YtdlpPath}", _YtdlpPath);
-        }
-
-        if (string.IsNullOrEmpty(_FFmpegPath))
-        {
-            Logger.Fatal("Cannot found ffmpeg");
-        }
-        else
-        {
-            Logger.Debug("Found ffmpeg at {FFmpegPath}", _FFmpegPath);
-        }
+        Logger.Debug("Found yt-dlp at {YtdlpPath}", _YtdlpPath);
+        Logger.Debug("Found ffmpeg at {FFmpegPath}", _FFmpegPath);
 
         return (_YtdlpPath, _FFmpegPath);
     }
