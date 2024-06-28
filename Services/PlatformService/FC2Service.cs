@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Interfaces;
 using Serilog;
 using FC2MemberData = LivestreamRecorderBackend.Models.FC2MemberData._FC2MemberData;
 using SourceGenerationContext = LivestreamRecorderBackend.Json.SourceGenerationContext;
@@ -13,7 +14,7 @@ using SourceGenerationContext = LivestreamRecorderBackend.Json.SourceGenerationC
 namespace LivestreamRecorderBackend.Services.PlatformService;
 
 public class Fc2Service(IHttpClientFactory httpClientFactory,
-                        ILogger logger)
+                        ILogger logger) : IPlatformService
 {
     private const string MemberApi = "https://live.fc2.com/api/memberApi.php";
     private static string PlatformName => "FC2";

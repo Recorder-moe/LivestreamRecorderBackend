@@ -1,17 +1,23 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using HtmlAgilityPack;
 using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Interfaces;
 using Serilog;
 
 namespace LivestreamRecorderBackend.Services.PlatformService;
 
-public class TwitcastingService(ILogger logger)
+public class TwitcastingService(ILogger logger) : IPlatformService
 {
     private static string PlatformName => "Twitcasting";
 
-    public (string? avatarUrl, string? bannerUrl, string? channelName) GetChannelData(string channelId)
+    public async Task<(string? avatarUrl, string? bannerUrl, string? channelName)> GetChannelData(string channelId, CancellationToken cancellation)
     {
-        HtmlDocument? htmlDoc = new HtmlWeb().Load($"https://twitcasting.tv/{NameHelper.ChangeId.ChannelId.PlatformType(channelId, PlatformName)}");
+        HtmlDocument htmlDoc = await new HtmlWeb().LoadFromWebAsync(
+            $"https://twitcasting.tv/{NameHelper.ChangeId.ChannelId.PlatformType(channelId, PlatformName)}",
+            cancellation);
+
         if (null == htmlDoc)
         {
             logger.Warning("Failed to get channel page for {channelId}", channelId);
@@ -61,8 +67,13 @@ public class TwitcastingService(ILogger logger)
     private static string? GetAvatarBlobUrl(HtmlDocument htmlDoc)
     {
         HtmlNode? avatarImgNode = htmlDoc.DocumentNode.SelectSingleNode("//a[@class='tw-user-nav-icon']/img");
-        string? avatarUrl = avatarImgNode?.Attributes["src"]?.Value
-                                         .Replace("_bigger", "");
+        HtmlNode? avatarImgNode2 = htmlDoc.DocumentNode.SelectSingleNode("//div[@class='tw-user-nav2-icon']/img");
+        string avatarUrl = (avatarImgNode?.Attributes["src"]?.Value
+                            ?? avatarImgNode2?.Attributes["src"]?.Value
+                            ?? "")
+            .Replace("_bigger", "");
+
+        if (avatarUrl.StartsWith("//")) avatarUrl = "https:" + avatarUrl;
 
         return avatarUrl;
     }

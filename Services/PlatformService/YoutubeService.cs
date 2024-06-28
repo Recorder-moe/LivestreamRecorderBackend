@@ -2,12 +2,13 @@
 using System.Threading;
 using System.Threading.Tasks;
 using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Interfaces;
 using LivestreamRecorderBackend.Models;
 using Serilog;
 
 namespace LivestreamRecorderBackend.Services.PlatformService;
 
-public class YoutubeService(ILogger logger)
+public class YoutubeService(ILogger logger) : IPlatformService
 {
     public async Task<(string? avatarUrl, string? bannerUrl, string? channelName)> GetChannelData(
         string channelId,

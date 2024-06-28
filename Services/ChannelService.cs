@@ -76,8 +76,8 @@ public class ChannelService(ILogger logger,
             {
                 "Youtube" => await youtubeService.GetChannelData(channel.id, cancellation),
                 "FC2" => await fC2Service.GetChannelData(channel.id, cancellation),
-                "Twitcasting" => twitcastingService.GetChannelData(channel.id),
-                "Twitch" => await twitchService.GetChannelData(channel.id),
+                "Twitcasting" => await twitcastingService.GetChannelData(channel.id, cancellation),
+                "Twitch" => await twitchService.GetChannelData(channel.id, cancellation),
                 _ => (avatarUrl, bannerUrl, name)
             };
         }

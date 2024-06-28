@@ -1,6 +1,8 @@
 ﻿using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using LivestreamRecorderBackend.Helper;
+using LivestreamRecorderBackend.Interfaces;
 using Serilog;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 using TwitchLib.Api.Interfaces;
@@ -8,11 +10,11 @@ using TwitchLib.Api.Interfaces;
 namespace LivestreamRecorderBackend.Services.PlatformService;
 
 public class TwitchService(ILogger logger,
-                           ITwitchAPI twitchApi)
+                           ITwitchAPI twitchApi) : IPlatformService
 {
     private static string PlatformName => "Twitch";
 
-    public async Task<(string? avatarUrl, string? bannerUrl, string? channelName)> GetChannelData(string channelId)
+    public async Task<(string? avatarUrl, string? bannerUrl, string? channelName)> GetChannelData(string channelId, CancellationToken cancellation)
     {
         GetUsersResponse? usersResponse =
             await twitchApi.Helix.Users.GetUsersAsync(logins: [NameHelper.ChangeId.ChannelId.PlatformType(channelId, PlatformName)]);
