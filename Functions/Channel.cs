@@ -1,4 +1,5 @@
 using System;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -11,6 +12,7 @@ using LivestreamRecorderBackend.DTO.Channel;
 using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Models;
 using LivestreamRecorderBackend.Services;
+using LivestreamRecorderBackend.Services.PlatformService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -25,6 +27,7 @@ namespace LivestreamRecorderBackend.Functions;
 // ReSharper disable once ClassNeverInstantiated.Global
 public class Channel(ILogger logger,
                      ChannelService channelService,
+                     TwitchService twitchService,
                      UserService userService)
 {
     [Function(nameof(AddChannelAsync))]
@@ -94,21 +97,24 @@ public class Channel(ILogger logger,
                     channelId = info.ChannelId;
                     channelName = info.Uploader;
                     break;
-                // case "Twitcasting":
-                // case "Twitch":
-                // case "FC2":
+                case "Twitch":
+                    twitchService.EnsureTwitchSetup();
+                    goto default;
+                //case "Twitcasting":
+                //case "FC2":
                 default:
                     channelId = url.Split('/', StringSplitOptions.RemoveEmptyEntries).Last();
-                    channelName = data.Name ?? channelId;
+                    channelName = channelId;
                     break;
             }
 
             channelId = NameHelper.ChangeId.ChannelId.DatabaseType(channelId, platform);
 
-            LivestreamRecorder.DB.Models.Channel channel = await channelService.GetByChannelIdAndSourceAsync(channelId, platform)
-                                                           ?? await channelService.AddChannelAsync(id: channelId,
-                                                                                                   source: platform,
-                                                                                                   channelName: channelName);
+            LivestreamRecorder.DB.Models.Channel channel =
+                await channelService.GetByChannelIdAndSourceAsync(channelId, platform)
+                ?? await channelService.AddChannelAsync(id: channelId,
+                                                        source: platform,
+                                                        channelName: channelName);
 
             logger.Information("Finish adding channel {channelName}:{channelId}", channelName, channelId);
 
@@ -117,12 +123,7 @@ public class Channel(ILogger logger,
                 input: new UpdateChannelRequest
                 {
                     id = channelId,
-                    Source = channel.Source,
-                    AutoUpdateInfo = channel.Source == "Youtube"
-                                     || channel.Source == "FC2",
-                    ChannelName = data.Name ?? channelName ?? channelId,
-                    Avatar = data.Avatar,
-                    Banner = data.Banner
+                    Source = channel.Source
                 });
 
             logger.Information("Started orchestration with ID {instanceId}.", instanceId);
@@ -132,10 +133,16 @@ public class Channel(ILogger logger,
         }
         catch (Exception e)
         {
-            if (e is InvalidOperationException) return new BadRequestObjectResult(e.Message);
-
-            logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
-            return new InternalServerErrorResult();
+            switch (e)
+            {
+                case InvalidOperationException:
+                    return new BadRequestObjectResult(e.Message);
+                case ConfigurationErrorsException:
+                    return new UnprocessableEntityObjectResult(e.Message);
+                default:
+                    logger.Error("Unhandled exception in {apiname}: {exception}", nameof(AddChannelAsync), e);
+                    return new InternalServerErrorResult();
+            }
         }
     }
 
@@ -186,18 +193,16 @@ public class Channel(ILogger logger,
         _ = Task.Run(async () =>
         {
             logger.Information("Start updating channel {channelId}", data.id);
-            LivestreamRecorder.DB.Models.Channel? channel = await channelService.GetByChannelIdAndSourceAsync(data.id, data.Source);
+            LivestreamRecorder.DB.Models.Channel? channel =
+                await channelService.GetByChannelIdAndSourceAsync(data.id, data.Source);
+
             if (null == channel)
             {
                 logger.Warning("Channel {channelId} not found when updating", data.id);
                 throw new EntityNotFoundException(data.id);
             }
 
-            if (null != data.Avatar)
-                data.Avatar = data.Avatar.Replace("_bigger", "") // Twitcasting
-                                  .Replace("70x70", "300x300"); // Twitch
-
-            await channelService.UpdateChannelDataAsync(channel, data.AutoUpdateInfo, data.ChannelName, data.Avatar, data.Banner);
+            await channelService.UpdateChannelDataAsync(channel);
 
             await channelService.EditMonitoringAsync(data.id, data.Source, true);
             logger.Information("Finish updating channel {channelId}", data.id);

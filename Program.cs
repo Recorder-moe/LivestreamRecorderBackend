@@ -17,12 +17,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Minio;
 using Serilog;
+using TwitchLib.Api;
+using TwitchLib.Api.Core;
+using TwitchLib.Api.Interfaces;
 using Log = LivestreamRecorderBackend.Helper.Log;
 #if COUCHDB
 using CouchDB.Driver.DependencyInjection;
 using CouchDB.Driver.Options;
 using LivestreamRecorder.DB.CouchDB;
 #endif
+
 #if COSMOSDB
 using LivestreamRecorder.DB.CosmosDB;
 using Microsoft.EntityFrameworkCore;
@@ -196,6 +200,18 @@ IHostBuilder builder = new HostBuilder()
                            services.AddSingleton<ChannelService>();
                            services.AddSingleton<UserService>();
                            services.AddSingleton<VideoService>();
+
+                           services.AddSingleton<ITwitchAPI, TwitchAPI>(_ =>
+                           {
+                               var api = new TwitchAPI(
+                                   settings: new ApiSettings
+                                   {
+                                       ClientId = Environment.GetEnvironmentVariable("Twitch_ClientId"),
+                                       Secret = Environment.GetEnvironmentVariable("Twitch_ClientSecret")
+                                   });
+
+                               return api;
+                           });
 
                            services.AddSingleton<Fc2Service>();
                            services.AddSingleton<TwitcastingService>();

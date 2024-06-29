@@ -24,7 +24,7 @@ public class TwitcastingService(ILogger logger) : IPlatformService
             return (null, null, null);
         }
 
-        string? avatarUrl = GetAvatarBlobUrl(htmlDoc);
+        string avatarUrl = GetAvatarBlobUrl(htmlDoc);
         string? bannerUrl = GetBannerBlobUrl(htmlDoc);
         string? channelName = GetChannelName(htmlDoc);
 
@@ -64,7 +64,7 @@ public class TwitcastingService(ILogger logger) : IPlatformService
         return bannerUrl;
     }
 
-    private static string? GetAvatarBlobUrl(HtmlDocument htmlDoc)
+    private static string GetAvatarBlobUrl(HtmlDocument htmlDoc)
     {
         HtmlNode? avatarImgNode = htmlDoc.DocumentNode.SelectSingleNode("//a[@class='tw-user-nav-icon']/img");
         HtmlNode? avatarImgNode2 = htmlDoc.DocumentNode.SelectSingleNode("//div[@class='tw-user-nav2-icon']/img");

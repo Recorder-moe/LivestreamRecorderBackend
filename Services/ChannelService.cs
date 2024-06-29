@@ -1,4 +1,9 @@
-﻿using System;
+﻿#if COSMOSDB
+using LivestreamRecorder.DB.CosmosDB;
+#elif COUCHDB
+using LivestreamRecorder.DB.CouchDB;
+#endif
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,11 +17,6 @@ using LivestreamRecorderBackend.Interfaces;
 using LivestreamRecorderBackend.Services.PlatformService;
 using MimeMapping;
 using Serilog;
-#if COSMOSDB
-using LivestreamRecorder.DB.CosmosDB;
-#elif COUCHDB
-using LivestreamRecorder.DB.CouchDB;
-#endif
 
 namespace LivestreamRecorderBackend.Services;
 
@@ -60,27 +60,20 @@ public class ChannelService(ILogger logger,
     }
 
     internal async Task UpdateChannelDataAsync(Channel channel,
-                                               bool autoUpdateInfo,
-                                               string? name = null,
-                                               string? avatarUrl = null,
-                                               string? bannerUrl = null,
                                                CancellationToken cancellation = default)
     {
         string channelName = channel.ChannelName;
         string? avatarBlobUri = channel.Avatar;
         string? bannerBlobUri = channel.Banner;
 
-        if (autoUpdateInfo)
+        (string? avatarUrl, string? bannerUrl, string? name) = channel.Source switch
         {
-            (avatarUrl, bannerUrl, name) = channel.Source switch
-            {
-                "Youtube" => await youtubeService.GetChannelData(channel.id, cancellation),
-                "FC2" => await fC2Service.GetChannelData(channel.id, cancellation),
-                "Twitcasting" => await twitcastingService.GetChannelData(channel.id, cancellation),
-                "Twitch" => await twitchService.GetChannelData(channel.id, cancellation),
-                _ => (avatarUrl, bannerUrl, name)
-            };
-        }
+            "Youtube" => await youtubeService.GetChannelData(channel.id, cancellation),
+            "FC2" => await fC2Service.GetChannelData(channel.id, cancellation),
+            "Twitcasting" => await twitcastingService.GetChannelData(channel.id, cancellation),
+            "Twitch" => await twitchService.GetChannelData(channel.id, cancellation),
+            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+        };
 
         if (!string.IsNullOrEmpty(name)) channelName = name;
 
@@ -157,8 +150,10 @@ public class ChannelService(ILogger logger,
 
         await Task.WhenAll(tasks);
 
+#if RELEASE
         File.Delete(tempPath);
         File.Delete(Path.ChangeExtension(tempPath, ".avif"));
+#endif
 
         return pathInStorage;
     }

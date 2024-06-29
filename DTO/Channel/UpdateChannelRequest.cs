@@ -8,8 +8,4 @@ public class UpdateChannelRequest
     public string id { get; set; }
 #pragma warning restore IDE1006 // 命名樣式
     public string Source { get; set; }
-    public bool AutoUpdateInfo { get; set; }
-    public string ChannelName { get; set; }
-    public string? Avatar { get; set; }
-    public string? Banner { get; set; }
 }
