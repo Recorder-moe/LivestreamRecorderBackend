@@ -4,7 +4,4 @@
 public class AddChannelRequest
 {
     public string Url { get; set; }
-    public string? Name { get; set; }
-    public string? Avatar { get; set; }
-    public string? Banner { get; set; }
 }

@@ -84,8 +84,8 @@ RUN install -d -m 775 -o $UID -g 0 /home/site/wwwroot && \
 COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.0-1 /dumb-init /usr/bin/
 
 COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/tarampampam/curl:8.8.0 /bin/curl /bin/curl
-HEALTHCHECK --interval=10s --timeout=2s --retries=3 --start-period=10s CMD [ \
-    "curl", "--fail", "http://127.0.0.1:8080/api/Utility/Wake/" \
+HEALTHCHECK --interval=10s --timeout=2s --retries=3 --start-period=20s CMD [ \
+    "curl", "--fail", "http://127.0.0.1:8080/api/healthz" \
     ]
 
 # Copy licenses (OpenShift Policy)
@@ -137,6 +137,9 @@ ENV CouchDB_Password=
 
 ENV GITHUB_PROVIDER_AUTHENTICATION_ID=
 ENV GITHUB_PROVIDER_AUTHENTICATION_SECRET=
+
+ENV Twitch_ClientId=
+ENV Twitch_ClientSecret=
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080

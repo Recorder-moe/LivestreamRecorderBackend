@@ -56,7 +56,7 @@ public class VideoService(ILogger logger,
             throw new InvalidOperationException($"Unsupported platform for {url}.");
         }
 
-        YtdlpVideoData._YtdlpVideoData? info = await YoutubeDL.GetInfoByYtdlpAsync(url);
+        YtdlpVideoData? info = await YoutubeDL.GetInfoByYtdlpAsync(url);
         if (null == info || string.IsNullOrEmpty(info.Id))
         {
             logger.Warning("Failed to get video info for {url}", url);

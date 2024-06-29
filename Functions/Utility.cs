@@ -15,7 +15,7 @@ public class Utility(ILogger logger)
     [OpenApiOperation(operationId: nameof(Wake), tags: [nameof(Utility)])]
     [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "Waked.")]
     public IActionResult Wake(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "Utility/Wake")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "healthz")]
         HttpRequest req)
     {
         Wake();

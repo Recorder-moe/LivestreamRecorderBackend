@@ -14,7 +14,7 @@ using LivestreamRecorder.DB.Interfaces;
 using LivestreamRecorder.DB.Models;
 using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Interfaces;
-using LivestreamRecorderBackend.Models;
+using LivestreamRecorderBackend.Services.PlatformService;
 using MimeMapping;
 using Serilog;
 
@@ -25,6 +25,9 @@ public class ChannelService(ILogger logger,
                             IChannelRepository channelRepository,
                             UnitOfWork_Public unitOfWorkPublic,
                             Fc2Service fC2Service,
+                            TwitcastingService twitcastingService,
+                            TwitchService twitchService,
+                            YoutubeService youtubeService,
                             IHttpClientFactory httpClientFactory)
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("client");
@@ -57,57 +60,20 @@ public class ChannelService(ILogger logger,
     }
 
     internal async Task UpdateChannelDataAsync(Channel channel,
-                                               bool autoUpdateInfo,
-                                               string? name = null,
-                                               string? avatarUrl = null,
-                                               string? bannerUrl = null,
                                                CancellationToken cancellation = default)
     {
         string channelName = channel.ChannelName;
         string? avatarBlobUri = channel.Avatar;
         string? bannerBlobUri = channel.Banner;
 
-        if (autoUpdateInfo)
-            switch (channel.Source)
-            {
-                case "Youtube":
-                {
-                    YtdlpVideoData._YtdlpVideoData? info =
-                        await YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channel.id}", cancellation);
-
-                    if (null == info)
-                    {
-                        logger.Warning("Failed to get channel info for {channelId}", channel.id);
-                        return;
-                    }
-
-                    name = info.Uploader;
-
-                    var thumbnails = info.Thumbnails.OrderByDescending(p => p.Preference).ToList();
-                    avatarUrl = thumbnails.FirstOrDefault()?.Url;
-                    bannerUrl = thumbnails.Skip(1).FirstOrDefault()?.Url;
-                }
-
-                    break;
-                case "FC2":
-                {
-                    FC2MemberData._FC2MemberData? info = await fC2Service.GetFc2InfoDataAsync(channel.id, cancellation);
-                    if (null == info)
-                    {
-                        logger.Warning("Failed to get channel info for {channelId}", channel.id);
-                        return;
-                    }
-
-                    name = info.Data.ProfileData.Name;
-                    avatarUrl = info.Data.ProfileData.Image;
-                }
-
-                    break;
-                // ReSharper disable once RedundantEmptySwitchSection
-                default:
-                    // Only download images for Youtube and FC2
-                    break;
-            }
+        (string? avatarUrl, string? bannerUrl, string? name) = channel.Source switch
+        {
+            "Youtube" => await youtubeService.GetChannelData(channel.id, cancellation),
+            "FC2" => await fC2Service.GetChannelData(channel.id, cancellation),
+            "Twitcasting" => await twitcastingService.GetChannelData(channel.id, cancellation),
+            "Twitch" => await twitchService.GetChannelData(channel.id, cancellation),
+            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+        };
 
         if (!string.IsNullOrEmpty(name)) channelName = name;
 
@@ -184,8 +150,10 @@ public class ChannelService(ILogger logger,
 
         await Task.WhenAll(tasks);
 
+#if RELEASE
         File.Delete(tempPath);
         File.Delete(Path.ChangeExtension(tempPath, ".avif"));
+#endif
 
         return pathInStorage;
     }

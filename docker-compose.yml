@@ -50,6 +50,9 @@ services:
       # #
       # - GITHUB_PROVIDER_AUTHENTICATION_ID=
       # - GITHUB_PROVIDER_AUTHENTICATION_SECRET=
+      # #
+      # - Twitch_ClientId=
+      # - Twitch_ClientSecret=
 
   # Azure Storage Emulator, needed for the durable functions
   # You can use your online azure storage account instead and make sure to set the AzureWebJobsStorage env variable to the online connection string
