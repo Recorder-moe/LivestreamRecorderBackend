@@ -87,7 +87,7 @@ public class Channel(ILogger logger,
             switch (platform)
             {
                 case "Youtube":
-                    YtdlpVideoData._YtdlpVideoData? info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
+                    YtdlpVideoData? info = await YoutubeDL.GetInfoByYtdlpAsync(data.Url);
                     if (null == info)
                     {
                         logger.Warning("Failed to get channel info for {url}", data.Url);

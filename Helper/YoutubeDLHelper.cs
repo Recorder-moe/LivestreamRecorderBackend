@@ -11,10 +11,10 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using LivestreamRecorderBackend.Models;
 using YoutubeDLSharp;
 using YoutubeDLSharp.Helpers;
 using YoutubeDLSharp.Options;
-using YtdlpVideoData = LivestreamRecorderBackend.Models.YtdlpVideoData._YtdlpVideoData;
 
 namespace LivestreamRecorderBackend.Helper;
 

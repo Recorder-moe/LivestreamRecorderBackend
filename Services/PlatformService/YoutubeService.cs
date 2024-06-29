@@ -1,9 +1,9 @@
 ﻿using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Interfaces;
-using LivestreamRecorderBackend.Models;
 using Serilog;
 
 namespace LivestreamRecorderBackend.Services.PlatformService;
@@ -14,8 +14,7 @@ public class YoutubeService(ILogger logger) : IPlatformService
         string channelId,
         CancellationToken cancellation)
     {
-        YtdlpVideoData._YtdlpVideoData? info =
-            await YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channelId}", cancellation);
+        var info = await YoutubeDL.GetInfoByYtdlpAsync($"https://www.youtube.com/channel/{channelId}", cancellation);
 
         if (null == info)
         {

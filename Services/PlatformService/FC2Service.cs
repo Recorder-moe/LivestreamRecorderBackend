@@ -7,8 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using LivestreamRecorderBackend.Helper;
 using LivestreamRecorderBackend.Interfaces;
+using LivestreamRecorderBackend.Models;
 using Serilog;
-using FC2MemberData = LivestreamRecorderBackend.Models.FC2MemberData._FC2MemberData;
 using SourceGenerationContext = LivestreamRecorderBackend.Json.SourceGenerationContext;
 
 namespace LivestreamRecorderBackend.Services.PlatformService;
