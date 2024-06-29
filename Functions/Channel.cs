@@ -185,28 +185,25 @@ public class Channel(ILogger logger,
     }
 
     [Function(nameof(UpdateChannel_Durable))]
-    public bool UpdateChannel_Durable(
+    public async Task<bool> UpdateChannel_Durable(
         [OrchestrationTrigger] TaskOrchestrationContext context)
     {
         UpdateChannelRequest? data = context.GetInput<UpdateChannelRequest>();
         if (null == data) throw new InvalidOperationException("Invalid request body!!");
-        _ = Task.Run(async () =>
-        {
-            logger.Information("Start updating channel {channelId}", data.id);
-            LivestreamRecorder.DB.Models.Channel? channel =
+        logger.Information("Start updating channel {channelId}", data.id);
+        LivestreamRecorder.DB.Models.Channel? channel =
                 await channelService.GetByChannelIdAndSourceAsync(data.id, data.Source);
 
-            if (null == channel)
-            {
-                logger.Warning("Channel {channelId} not found when updating", data.id);
-                throw new EntityNotFoundException(data.id);
-            }
+        if (null == channel)
+        {
+            logger.Warning("Channel {channelId} not found when updating", data.id);
+            throw new EntityNotFoundException(data.id);
+        }
 
-            await channelService.UpdateChannelDataAsync(channel);
+        await channelService.UpdateChannelDataAsync(channel);
 
-            await channelService.EditMonitoringAsync(data.id, data.Source, true);
-            logger.Information("Finish updating channel {channelId}", data.id);
-        });
+        await channelService.EditMonitoringAsync(data.id, data.Source, true);
+        logger.Information("Finish updating channel {channelId}", data.id);
 
         return true;
     }

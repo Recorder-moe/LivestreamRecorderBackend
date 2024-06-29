@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Configuration;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using LivestreamRecorderBackend.Helper;
@@ -21,8 +22,8 @@ public class TwitchService(ILogger logger,
 
         if (null == usersResponse || usersResponse.Users.Length == 0)
         {
-            logger.Warning("Failed to get channel info for {channelId}", channelId);
-            return (null, null, null);
+            logger.Error("Failed to get channel info for {channelId}", channelId);
+            throw new HttpRequestException($"Failed to get channel info for {channelId}");
         }
 
         User user = usersResponse.Users.First();

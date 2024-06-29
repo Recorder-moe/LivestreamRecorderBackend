@@ -63,15 +63,10 @@ public class Fc2Service(IHttpClientFactory httpClientFactory,
 
             return (avatarUrl, bannerUrl, channelName);
         }
-        catch (HttpRequestException e)
+        catch (Exception)
         {
-            logger.Error(e, "Get fc2 info failed with {StatusCode}. {channelId} Be careful if this happens repeatedly.", e.StatusCode, channelId);
-            return (null, null, null);
-        }
-        catch (Exception e)
-        {
-            logger.Error(e, "Get fc2 info failed. {channelId} Be careful if this happens repeatedly.", channelId);
-            return (null, null, null);
+            logger.Error("Failed to get channel info for {channelId}", channelId);
+            throw;
         }
     }
 }

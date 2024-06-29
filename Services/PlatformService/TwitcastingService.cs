@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
@@ -20,8 +21,8 @@ public class TwitcastingService(ILogger logger) : IPlatformService
 
         if (null == htmlDoc)
         {
-            logger.Warning("Failed to get channel page for {channelId}", channelId);
-            return (null, null, null);
+            logger.Error("Failed to get channel info for {channelId}", channelId);
+            throw new HttpRequestException($"Failed to get channel info for {channelId}");
         }
 
         string avatarUrl = GetAvatarBlobUrl(htmlDoc);

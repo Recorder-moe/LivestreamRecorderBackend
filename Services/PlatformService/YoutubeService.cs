@@ -18,8 +18,8 @@ public class YoutubeService(ILogger logger) : IPlatformService
 
         if (null == info)
         {
-            logger.Warning("Failed to get channel info for {channelId}", channelId);
-            return (null, null, null);
+            logger.Error("Failed to get channel info for {channelId}", channelId);
+            throw new HttpRequestException($"Failed to get channel info for {channelId}");
         }
 
         string? channelName = info.Uploader;
