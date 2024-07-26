@@ -19,20 +19,10 @@ ARG TARGETVARIANT
 
 WORKDIR /app
 
-# Install under /root/.local
-ENV PIP_USER="true"
-ARG PIP_NO_WARN_SCRIPT_LOCATION=0
-ARG PIP_ROOT_USER_ACTION="ignore"
-ARG PIP_NO_COMPILE="true"
-ARG PIP_DISABLE_PIP_VERSION_CHECK="true"
-
 RUN --mount=type=cache,id=apt-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/var/cache/apt \
     --mount=type=cache,id=aptlists-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/var/lib/apt/lists \
     apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    # Cleanup
-    find "/root/.local" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
-    find "/root/.local" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ;
+    python3
 
 ARG UID
 # ffmpeg
@@ -40,7 +30,7 @@ COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx
 COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.0-1 /ffprobe /usr/bin/
 
 # yt-dlp
-COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/yt-dlp:distroless /home/monty/.local /usr/bin/
+ADD --link --chown=$UID:0 --chmod=775 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp /usr/bin/yt-dlp
 
 ########################################
 # Build stage
@@ -68,7 +58,7 @@ RUN --mount=source=.,target=.,rw \
 ########################################
 # Final stage
 ########################################
-FROM base as final
+FROM base AS final
 
 ARG UID
 # Support arbitrary user ids (OpenShift best practice)
@@ -78,6 +68,7 @@ RUN chown -R $UID:0 /azure-functions-host && \
 
 # Create directories with correct permissions
 RUN install -d -m 775 -o $UID -g 0 /home/site/wwwroot && \
+    install -d -m 775 -o $UID -g 0 /home/.cache && \
     install -d -m 775 -o $UID -g 0 /licenses
 
 # dumb-init
@@ -96,7 +87,6 @@ COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/yt-dlp:distroless
 COPY --link --chown=$UID:0 --chmod=775 --from=publish /app /home/site/wwwroot
 
 ENV PATH="/home/site/wwwroot:/home/$UID/.local/bin:$PATH"
-ENV PYTHONPATH "/home/$UID/.local/lib/python3.12/site-packages:${PYTHONPATH}"
 
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot
 ENV FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
@@ -144,7 +134,7 @@ ENV Twitch_ClientSecret=
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
-USER $UID
+USER $UID:0
 
 STOPSIGNAL SIGINT
 
