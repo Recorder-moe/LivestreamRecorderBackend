@@ -96,7 +96,6 @@ internal static partial class YoutubeDL
     /// 尋找程式路徑
     /// </summary>
     /// <returns>Full path of yt-dlp and FFmpeg</returns>
-    /// <exception cref="BadImageFormatException" >The function is only works in windows.</exception>
     public static (string? YtdlPath, string? FFmpegPath) WhereIs()
     {
         char splitChar = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ';' : ':';

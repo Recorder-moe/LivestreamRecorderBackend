@@ -75,17 +75,6 @@
   <ItemGroup>
     <ProjectReference Include="LivestreamRecorder.DB\LivestreamRecorder.DB.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(IsWindows)'=='true'">
-    <None Update="ffmpeg.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="ffprobe.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="yt-dlp.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
