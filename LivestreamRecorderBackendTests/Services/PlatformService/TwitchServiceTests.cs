@@ -1,4 +1,4 @@
-﻿using LivestreamRecorderBackend.Services.PlatformService;
+using LivestreamRecorderBackend.Services.PlatformService;
 using Moq;
 using NUnit.Framework;
 using Serilog;

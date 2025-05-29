@@ -1,4 +1,4 @@
-﻿#if COSMOSDB
+#if COSMOSDB
 using LivestreamRecorder.DB.CosmosDB;
 #elif COUCHDB
 using LivestreamRecorder.DB.CouchDB;

@@ -1,4 +1,4 @@
-﻿using LivestreamRecorderBackend.Json;
+using LivestreamRecorderBackend.Json;
 using Serilog;
 using System;
 using System.Configuration;

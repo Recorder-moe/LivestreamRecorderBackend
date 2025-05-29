@@ -1,4 +1,4 @@
-﻿// ReSharper disable NotNullOrRequiredMemberIsNotInitialized
+// ReSharper disable NotNullOrRequiredMemberIsNotInitialized
 
 #nullable disable warnings
 
