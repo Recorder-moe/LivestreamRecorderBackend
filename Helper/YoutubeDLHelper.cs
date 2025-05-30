@@ -125,22 +125,9 @@ internal static partial class YoutubeDL
 
     public static async Task<YtdlpVideoData?> GetInfoByYtdlpAsync(string url, CancellationToken cancellation = default)
     {
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var extension = isWindows ? ".exe" : "";
-        string _ytdlPath = "./yt-dlp" + extension;
-        string _ffmpegPath = "./ffmpeg" + extension;
-
-        if (File.Exists(_ytdlPath) && File.Exists(_ffmpegPath))
-        {
-            _ytdlPath = Path.GetFullPath(_ytdlPath);
-            _ffmpegPath = Path.GetFullPath(_ffmpegPath);
-        }
-        else
-        {
-            (string? YtdlPath, string? FFmpegPath) = WhereIs();
-            _ytdlPath = YtdlPath ?? throw new ConfigurationErrorsException("Yt-dlp is missing.");
-            _ffmpegPath = FFmpegPath ?? throw new ConfigurationErrorsException("FFmpeg is missing.");
-        }
+        (string? YtdlPath, string? FFmpegPath) = WhereIs();
+        var _ytdlPath = YtdlPath ?? throw new ConfigurationErrorsException("Yt-dlp is missing.");
+        var _ffmpegPath = FFmpegPath ?? throw new ConfigurationErrorsException("FFmpeg is missing.");
 
         var ytdl = new YoutubeDLSharp.YoutubeDL
         {
