@@ -73,7 +73,7 @@
     <PackageReference Include="YoutubeDLSharp" Version="1.1.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="LivestreamRecorder.DB\LivestreamRecorder.DB.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)LivestreamRecorder.DB\LivestreamRecorder.DB.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
