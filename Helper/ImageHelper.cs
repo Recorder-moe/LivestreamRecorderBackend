@@ -14,6 +14,17 @@ public static class ImageHelper
     public static async Task<string> ConvertToAvifAsync(string path)
     {
         IMediaInfo? mediaInfo = await FFmpeg.GetMediaInfo(path);
+
+        if (mediaInfo == null)
+        {
+            Logger.Error("Failed to get media info for {path}", path);
+            throw new FileNotFoundException("Media info not found", path);
+        }
+        else
+        {
+            Logger.Verbose("Media info for {path}: {mediaInfo}", path, mediaInfo);
+        }
+
         string outputPath = Path.ChangeExtension(path, ".avif");
 
         IConversion? conversion = FFmpeg.Conversions.New()

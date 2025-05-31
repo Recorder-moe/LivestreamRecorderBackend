@@ -75,6 +75,9 @@ public class ChannelService(ILogger logger,
             _ => throw new ArgumentOutOfRangeException(nameof(channel))
         };
 
+        logger.Information("Updating channel {ChannelId} ({Source}) with name: {Name}, avatar: {AvatarUrl}, banner: {BannerUrl}",
+            channel.id, channel.Source, name, avatarUrl, bannerUrl);
+
         if (!string.IsNullOrEmpty(name)) channelName = name;
 
         if (!string.IsNullOrEmpty(avatarUrl))
@@ -89,6 +92,9 @@ public class ChannelService(ILogger logger,
         channel.Banner = bannerBlobUri?.Replace("banner/", "");
         await channelRepository.AddOrUpdateAsync(channel);
         _unitOfWorkPublic.Commit();
+
+        logger.Information("Updated channel {ChannelId} ({Source}) with name: {Name}, avatar: {Avatar}, banner: {Banner}",
+            channel.id, channel.Source, channel.ChannelName, channel.Avatar, channel.Banner);
     }
 
     /// <summary>
@@ -137,24 +143,33 @@ public class ChannelService(ILogger logger,
             await contentStream.CopyToAsync(fileStream, cancellation);
         }
 
-        List<Task> tasks =
-        [
-            storageService.UploadPublicFileAsync(contentType: contentType,
-                                                 pathInStorage: pathInStorage,
-                                                 filePathToUpload: tempPath,
-                                                 cancellation: cancellation),
+        logger.Debug("Downloaded image from {Url} to {TempPath}", url, tempPath);
 
-            storageService.UploadPublicFileAsync(contentType: KnownMimeTypes.Avif,
-                                                 pathInStorage: $"{path}.avif",
-                                                 filePathToUpload: await ImageHelper.ConvertToAvifAsync(tempPath),
-                                                 cancellation: cancellation)
-        ];
+        logger.Debug("Converting image {TempPath} to AVIF format", tempPath);
 
-        await Task.WhenAll(tasks);
+        var avifPath = await ImageHelper.ConvertToAvifAsync(tempPath);
+        var avifPathInStorage = $"{path}.avif";
+
+        logger.Debug("Converted image to AVIF format: {AvifPath}", avifPath);
+
+        logger.Debug("Uploading image to Blob Storage at {PathInStorage} and {AvifPathInStorage}", pathInStorage, avifPathInStorage);
+
+        await storageService.UploadPublicFileAsync(contentType: contentType,
+                                                   pathInStorage: pathInStorage,
+                                                   filePathToUpload: tempPath,
+                                                   cancellation: cancellation);
+
+        await storageService.UploadPublicFileAsync(contentType: KnownMimeTypes.Avif,
+                                                   pathInStorage: avifPathInStorage,
+                                                   filePathToUpload: avifPath,
+                                                   cancellation: cancellation);
+
+        logger.Information("Uploaded image to Blob Storage at {PathInStorage} and {AvifPathInStorage}", pathInStorage, avifPathInStorage);
 
 #if RELEASE
         File.Delete(tempPath);
         File.Delete(Path.ChangeExtension(tempPath, ".avif"));
+        File.Delete(Path.ChangeExtension(tempPath, ".tmp"));
 #endif
 
         return pathInStorage;
