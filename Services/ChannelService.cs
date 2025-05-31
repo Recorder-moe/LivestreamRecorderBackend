@@ -127,6 +127,8 @@ public class ChannelService(ILogger logger,
 
         if (string.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
 
+        logger.Debug("Downloading image from {Url}", url);
+
         HttpResponseMessage response = await _httpClient.GetAsync(url, cancellation);
         if (!response.IsSuccessStatusCode) return null;
 
@@ -145,30 +147,16 @@ public class ChannelService(ILogger logger,
 
         logger.Debug("Downloaded image from {Url} to {TempPath}", url, tempPath);
 
-        logger.Debug("Converting image {TempPath} to AVIF format", tempPath);
-
-        var avifPath = await ImageHelper.ConvertToAvifAsync(tempPath);
-        var avifPathInStorage = $"{path}.avif";
-
-        logger.Debug("Converted image to AVIF format: {AvifPath}", avifPath);
-
-        logger.Debug("Uploading image to Blob Storage at {PathInStorage} and {AvifPathInStorage}", pathInStorage, avifPathInStorage);
+        logger.Debug("Uploading image to Blob Storage at {PathInStorage}", pathInStorage);
 
         await storageService.UploadPublicFileAsync(contentType: contentType,
                                                    pathInStorage: pathInStorage,
                                                    filePathToUpload: tempPath,
                                                    cancellation: cancellation);
-
-        await storageService.UploadPublicFileAsync(contentType: KnownMimeTypes.Avif,
-                                                   pathInStorage: avifPathInStorage,
-                                                   filePathToUpload: avifPath,
-                                                   cancellation: cancellation);
-
-        logger.Information("Uploaded image to Blob Storage at {PathInStorage} and {AvifPathInStorage}", pathInStorage, avifPathInStorage);
+        logger.Information("Uploaded image to Blob Storage at {PathInStorage}", pathInStorage);
 
 #if RELEASE
         File.Delete(tempPath);
-        File.Delete(Path.ChangeExtension(tempPath, ".avif"));
         File.Delete(Path.ChangeExtension(tempPath, ".tmp"));
 #endif
 
