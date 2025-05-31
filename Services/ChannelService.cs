@@ -77,10 +77,10 @@ public class ChannelService(ILogger logger,
 
         if (!string.IsNullOrEmpty(name)) channelName = name;
 
-        if (!string.IsNullOrEmpty(avatarUrl) && avatarUrl.StartsWith("http"))
+        if (!string.IsNullOrEmpty(avatarUrl))
             avatarBlobUri = await DownloadImageAndUploadToBlobStorageAsync(avatarUrl, $"avatar/{channel.id}", cancellation);
 
-        if (!string.IsNullOrEmpty(bannerUrl) && bannerUrl.StartsWith("http"))
+        if (!string.IsNullOrEmpty(bannerUrl))
             bannerBlobUri = await DownloadImageAndUploadToBlobStorageAsync(bannerUrl, $"banner/{channel.id}", cancellation);
 
         await channelRepository.ReloadEntityFromDBAsync(channel);
@@ -116,6 +116,8 @@ public class ChannelService(ILogger logger,
     private async Task<string?> DownloadImageAndUploadToBlobStorageAsync(string url, string path, CancellationToken cancellation)
     {
         if (string.IsNullOrEmpty(url)) throw new ArgumentNullException(nameof(url));
+
+        if (!url.StartsWith("http")) url = "https:" + url;
 
         if (string.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
 
