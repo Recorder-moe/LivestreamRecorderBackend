@@ -14,6 +14,8 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
+  attestations: write
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -70,7 +72,8 @@ jobs:
           password: ${{ github.token }}
 
       - name: Build and push:ApacheCouchDB
-        uses: docker/build-push-action@v5
+        id: build_push_apache_couchdb
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -89,8 +92,21 @@ jobs:
           sbom: true
           provenance: true
 
+      - name: Attest Docker Hub image:ApacheCouchDB
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ secrets.DOCKERHUB_ORGANIZATION_NAME }}/${{ github.event.repository.name }}
+          subject-digest: ${{ steps.build_push_apache_couchdb.outputs.digest }}
+
+      - name: Attest GHCR image:ApacheCouchDB
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build_push_apache_couchdb.outputs.digest }}
+
       - name: Build and push:AzureCosmosDB
-        uses: docker/build-push-action@v5
+        id: build_push_azure_cosmosdb
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -108,4 +124,16 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/recorder-moe/livestreamrecorderbackend:cache,mode=max
           sbom: true
           provenance: true
+
+      - name: Attest Docker Hub image:AzureCosmosDB
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ secrets.DOCKERHUB_ORGANIZATION_NAME }}/${{ github.event.repository.name }}
+          subject-digest: ${{ steps.build_push_azure_cosmosdb.outputs.digest }}
+
+      - name: Attest GHCR image:AzureCosmosDB
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build_push_azure_cosmosdb.outputs.digest }}
 

@@ -7,7 +7,12 @@
     "cSpell.words": [
         "ffprobe",
         "Livestream",
-        "livestreamrecorderbackend"
+        "livestreamrecorderbackend",
+        "Serilog",
+        "Twitcasting",
+        "Xabe",
+        "ytdl",
+        "Ytdlp"
     ],
     "dotnet.defaultSolution": "LivestreamRecorderBackend.sln"
 }

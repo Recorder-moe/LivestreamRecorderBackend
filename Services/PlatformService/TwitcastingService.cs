@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,8 +25,8 @@ public class TwitcastingService(ILogger logger) : IPlatformService
             throw new HttpRequestException($"Failed to get channel info for {channelId}");
         }
 
-        string avatarUrl = GetAvatarBlobUrl(htmlDoc);
-        string? bannerUrl = GetBannerBlobUrl(htmlDoc);
+        string avatarUrl = GetAvatarUrl(htmlDoc);
+        string? bannerUrl = GetBannerUrl(htmlDoc);
         string? channelName = GetChannelName(htmlDoc);
 
         return (avatarUrl, bannerUrl, channelName);
@@ -52,12 +52,12 @@ public class TwitcastingService(ILogger logger) : IPlatformService
         if (endIndex == -1) return null;
 
         string url = style[startIndex..endIndex].Trim('\'', '\"');
-        if (url.StartsWith("//")) url = "https:" + url;
+        if (!url.StartsWith("http")) url = "https:" + url;
 
         return url;
     }
 
-    private static string? GetBannerBlobUrl(HtmlDocument htmlDoc)
+    private static string? GetBannerUrl(HtmlDocument htmlDoc)
     {
         HtmlNode? bannerNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@class='tw-user-banner-image']");
         string? bannerUrl = ExtractBackgroundImageUrl(bannerNode?.GetAttributeValue("style", "") ?? "");
@@ -65,7 +65,7 @@ public class TwitcastingService(ILogger logger) : IPlatformService
         return bannerUrl;
     }
 
-    private static string GetAvatarBlobUrl(HtmlDocument htmlDoc)
+    private static string GetAvatarUrl(HtmlDocument htmlDoc)
     {
         HtmlNode? avatarImgNode = htmlDoc.DocumentNode.SelectSingleNode("//a[@class='tw-user-nav-icon']/img");
         HtmlNode? avatarImgNode2 = htmlDoc.DocumentNode.SelectSingleNode("//div[@class='tw-user-nav2-icon']/img");
@@ -74,7 +74,7 @@ public class TwitcastingService(ILogger logger) : IPlatformService
                             ?? "")
             .Replace("_bigger", "");
 
-        if (avatarUrl.StartsWith("//")) avatarUrl = "https:" + avatarUrl;
+        if (!avatarUrl.StartsWith("http")) avatarUrl = "https:" + avatarUrl;
 
         return avatarUrl;
     }

@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-
+    <Configurations>CouchDB;CosmosDB</Configurations>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\LivestreamRecorder.DB\LivestreamRecorder.DB.csproj" />
     <ProjectReference Include="..\LivestreamRecorderBackend.csproj" />
   </ItemGroup>
 

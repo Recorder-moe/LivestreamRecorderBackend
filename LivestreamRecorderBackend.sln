@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33122.133
@@ -54,12 +54,12 @@ Global
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.AzureCosmosDB_Release|Any CPU.Build.0 = Release|Any CPU
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.CosmosDB|Any CPU.ActiveCfg = Debug|Any CPU
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.CosmosDB|Any CPU.Build.0 = Debug|Any CPU
-		{952B4A1D-919A-4580-9D49-571D0DD41462}.CouchDB|Any CPU.ActiveCfg = Debug|Any CPU
-		{952B4A1D-919A-4580-9D49-571D0DD41462}.CouchDB|Any CPU.Build.0 = Debug|Any CPU
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{952B4A1D-919A-4580-9D49-571D0DD41462}.Release|Any CPU.Build.0 = Release|Any CPU
+		{952B4A1D-919A-4580-9D49-571D0DD41462}.CouchDB|Any CPU.ActiveCfg = CouchDB|Any CPU
+		{952B4A1D-919A-4580-9D49-571D0DD41462}.CouchDB|Any CPU.Build.0 = CouchDB|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

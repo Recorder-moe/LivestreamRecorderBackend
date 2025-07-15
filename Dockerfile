@@ -26,8 +26,8 @@ RUN --mount=type=cache,id=apt-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/v
 
 ARG UID
 # ffmpeg
-COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.0-1 /ffmpeg /usr/bin/
-COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.0-1 /ffprobe /usr/bin/
+COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.1.1 /ffmpeg /usr/bin/
+COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.1.1 /ffprobe /usr/bin/
 
 # yt-dlp
 ADD --link --chown=$UID:0 --chmod=775 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp /usr/bin/yt-dlp
@@ -72,7 +72,7 @@ RUN install -d -m 775 -o $UID -g 0 /home/site/wwwroot && \
     install -d -m 775 -o $UID -g 0 /licenses
 
 # dumb-init
-COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.0-1 /dumb-init /usr/bin/
+COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:7.1.1 /dumb-init /usr/bin/
 
 COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/tarampampam/curl:8.8.0 /bin/curl /bin/curl
 HEALTHCHECK --interval=10s --timeout=2s --retries=3 --start-period=20s CMD [ \
