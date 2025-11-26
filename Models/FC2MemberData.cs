@@ -63,7 +63,7 @@ public class ChannelData
     public int? Interval { get; set; }
 
     [JsonPropertyName("category")]
-    public string Category { get; set; }
+    public int Category { get; set; }
 
     [JsonPropertyName("category_name")]
     public string CategoryName { get; set; }
@@ -192,10 +192,12 @@ public class GiftList
 public class ProfileData
 {
     [JsonPropertyName("userid")]
-    public string Userid { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long? Userid { get; set; }
 
     [JsonPropertyName("fc2id")]
-    public string Fc2id { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long? Fc2id { get; set; }
 
     [JsonPropertyName("name")]
     public string Name { get; set; }
@@ -213,5 +215,6 @@ public class ProfileData
     public string Sex { get; set; }
 
     [JsonPropertyName("age")]
-    public string Age { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? Age { get; set; }
 }
