@@ -7,6 +7,7 @@ ARG APP_UID=1654
 ARG VERSION=EDGE
 ARG RELEASE=0
 ARG BUILD_CONFIGURATION=ApacheCouchDB_Release
+ARG YTDLP_VERSION=2025.12.08
 
 ########################################
 # Base stage
@@ -25,12 +26,31 @@ RUN --mount=type=cache,id=apt-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/v
     python3
 
 ARG UID
+
+# Create directories for POToken provider and deno
+RUN install -d -m 775 -o $UID -g 0 /etc/yt-dlp-plugins/bgutil-ytdlp-pot-provider && \
+    install -d -m 775 -o $UID -g 0 /deno-dir
+
 # ffmpeg
 COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:8.0 /ffmpeg /usr/bin/
 COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/static-ffmpeg-upx:8.0 /ffprobe /usr/bin/
 
-# yt-dlp
-ADD --link --chown=$UID:0 --chmod=775 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp /usr/bin/yt-dlp
+# Copy POToken server (bgutil-pot)
+COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/bgutil-pot:latest /bgutil-pot /usr/bin/
+
+# Copy POToken client plugin
+COPY --link --chown=$UID:0 --chmod=775 --from=ghcr.io/jim60105/bgutil-pot:latest /client /etc/yt-dlp-plugins/bgutil-ytdlp-pot-provider
+
+# yt-dlp (using Linux build for Debian with glibc)
+ARG YTDLP_VERSION
+ADD --link --chown=$UID:0 --chmod=775 https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/yt-dlp_linux /usr/bin/yt-dlp
+
+# Deno JS runtime for yt-dlp
+ENV DENO_USE_CGROUPS=1 \
+    DENO_DIR=/deno-dir/ \
+    DENO_INSTALL_ROOT=/usr/local
+
+COPY --link --chown=$UID:0 --chmod=775 --from=docker.io/denoland/deno:bin /deno /usr/bin/
 
 ########################################
 # Build stage
